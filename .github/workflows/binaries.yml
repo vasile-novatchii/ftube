@@ -1,0 +1,49 @@
+name: Binaries
+
+on:
+  push:
+    branches: [main]
+    paths: [tool/**, .github/workflows/binaries.yml]
+  pull_request:
+    paths: [tool/**, .github/workflows/binaries.yml]
+  workflow_dispatch:
+
+concurrency:
+  group: binaries-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    name: Fetch and smoke test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        shell: bash
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Fetch, verify and run the binaries
+        run: dart run tool/fetch_binaries.dart --smoke
+
+      - name: Check universal macOS binaries
+        if: runner.os == 'macOS'
+        run: |
+          for f in build/binaries/macos/*; do
+            echo "$f: $(lipo -archs "$f")"
+            lipo -archs "$f" | grep -q arm64
+            lipo -archs "$f" | grep -q x86_64
+          done

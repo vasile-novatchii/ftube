@@ -1,0 +1,71 @@
+# Desktop binaries bundled with Ftube (spec D-1, D-2, D-14).
+#
+# `dart run tool/fetch_binaries.dart` downloads each artifact for the target
+# platform, checks its SHA-256 and extracts the listed files:
+#   files: { <path inside the archive, or "." for a plain file>: <output name> }
+# Entries that share an output name and set `arch` are merged with
+# `lipo -create` into one universal macOS binary.
+#
+# To update a binary, change url and sha256 together and take the checksum
+# from the publisher (SHA2-256SUMS, *.sha256, checksums.sha256).
+#
+# Versions: yt-dlp 2026.10.26, FFmpeg 9.0.2, Deno 2.9.8.
+
+macos:
+  # Universal2 (x86_64 + arm64), minimum macOS 11.
+  - url: https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp_macos
+    sha256: 0f922c15ccc0b83eefa1c8bc9104e434318c4bf16e408e1ee93b7745a6efe0aa
+    files: { .: yt-dlp_macos }
+  # Static builds by Martin Riedl, minimum macOS 12.0.
+  - url: https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip
+    sha256: c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924
+    arch: arm64
+    files: { ffmpeg: ffmpeg }
+  - url: https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2/ffmpeg.zip
+    sha256: 7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4
+    arch: x86_64
+    files: { ffmpeg: ffmpeg }
+  - url: https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffprobe.zip
+    sha256: fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6
+    arch: arm64
+    files: { ffprobe: ffprobe }
+  - url: https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2/ffprobe.zip
+    sha256: 2322438ed2f6319a691291b247d09c69dcaa3a982460d1f269a7e1af335cfdfd
+    arch: x86_64
+    files: { ffprobe: ffprobe }
+  - url: https://github.com/denoland/deno/releases/download/v2.9.8/deno-aarch64-apple-darwin.zip
+    sha256: 9f0bf660393da2eaff044cdc7444cb08c73f235849b61d224d825a194ce7c98e
+    arch: arm64
+    files: { deno: deno }
+  - url: https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-apple-darwin.zip
+    sha256: 4b2f5edd2639b7470f034238b321d7002d8dfb4726d8558f52c17afac370eb2c
+    arch: x86_64
+    files: { deno: deno }
+
+windows:
+  - url: https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.exe
+    sha256: f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d
+    files: { .: yt-dlp.exe }
+  # Gyan.dev "essentials" release build, mirrored on GitHub.
+  - url: https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip
+    sha256: 60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba
+    files:
+      ffmpeg-9.0.2-essentials_build/bin/ffmpeg.exe: ffmpeg.exe
+      ffmpeg-9.0.2-essentials_build/bin/ffprobe.exe: ffprobe.exe
+  - url: https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip
+    sha256: cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf
+    files: { deno.exe: deno.exe }
+
+linux:
+  - url: https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp_linux
+    sha256: 767ba9dce7052aa196f8b12652f433d76de128ba168966fa84b6394d5e6c6795
+    files: { .: yt-dlp_linux }
+  # BtbN month-end build (month-end builds are kept for about two years).
+  - url: https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0.tar.xz
+    sha256: 68ee646831adaae2495618346f3bba94ff207ff83bbd34d643e7004730d66269
+    files:
+      ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffmpeg: ffmpeg
+      ffmpeg-n9.0.2-17-g2a571b6068-linux64-gpl-9.0/bin/ffprobe: ffprobe
+  - url: https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-unknown-linux-gnu.zip
+    sha256: e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609
+    files: { deno: deno }

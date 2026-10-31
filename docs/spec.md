@@ -322,10 +322,13 @@ stateDiagram-v2
 
 ## 5. Decisions
 
-- D-1: Desktop bundles `yt-dlp` standalone binaries (`yt-dlp_macos`, `yt-dlp.exe`, `yt-dlp_linux`) plus static `ffmpeg`/`ffprobe` - the user installs nothing.
-- D-2: Bundled binaries are pinned by version and SHA-256 in `tool/binaries.yaml`. `tool/fetch_binaries.dart` downloads them in CI and locally before a build, and they are never committed to git.
-- D-3: Binaries are placed next to the executable: `Contents/MacOS` on macOS, the folder of `ftube.exe` on Windows, and `bundle/lib` on Linux. `BinaryService` resolves them from `Platform.resolvedExecutable`.
-- D-4: "Update yt-dlp" runs `yt-dlp -U` against a copy in the app support folder. The bundled copy stays read-only as a fallback.
+- D-1: Desktop bundles `yt-dlp` standalone binaries (`yt-dlp_macos`, `yt-dlp.exe`, `yt-dlp_linux`), static `ffmpeg`/`ffprobe`, and `deno` - the user installs nothing. yt-dlp needs a JS runtime for full YouTube support, so `deno` is passed with `--js-runtimes deno:<path>`. It is optional at runtime: without it yt-dlp warns and some formats may be missing.
+- D-2: Bundled binaries are pinned by version and SHA-256 in `tool/binaries.yaml`. `tool/fetch_binaries.dart` downloads, verifies and unpacks them into `build/binaries/<platform>`, and they are never committed to git. Sources (all with publisher checksums):
+  - yt-dlp 2026.10.26: GitHub releases of yt-dlp.
+  - FFmpeg 9.0.2: Martin Riedl static builds (macOS arm64 + x86_64), GyanD essentials (Windows), BtbN GPL (Linux).
+  - Deno 2.9.8: GitHub releases of Deno.
+- D-3: Binaries are placed next to the executable: `Contents/MacOS` on macOS, the folder of `ftube.exe` on Windows, and `bundle/lib` on Linux. `BinaryService` resolves them from `Platform.resolvedExecutable`. The P9 release job copies them there after `flutter build` (and ad-hoc codesigns them on macOS), so no Xcode project edits are needed. For `flutter run`, the `FTUBE_BIN_DIR` environment variable points at `build/binaries/<platform>` instead.
+- D-4: "Update yt-dlp" copies the bundled yt-dlp to `<app support>/bin` once and runs `yt-dlp -U` on that copy. `BinaryService` prefers the copy when it exists. The bundled copy stays read-only as a fallback.
 - D-5: Android uses `youtube_explode_dart` + `ffmpeg_kit_flutter_new_audio`. High quality comes from muxing a video-only and an audio-only stream with `-c copy`.
 - D-6: The architecture is MVVM as in the Flutter guide, with Riverpod 3 notifiers as ViewModels, `riverpod_generator` and `freezed` for state.
 - D-7: Theme uses `ThemeMode.system` by default, with a user override for Light or Dark. Material 3 with a seeded `ColorScheme`.
@@ -343,6 +346,7 @@ stateDiagram-v2
 - D-14: macOS ships one universal `.app` for arm64 and x86_64. The bundled `yt-dlp_macos` must be universal, and `ffmpeg`/`ffprobe` are made universal by `lipo -create`-ing the arm64 and x86_64 static builds in `tool/fetch_binaries.dart`. CI verifies the result with `lipo -archs`.
 - D-10: "Open with player" becomes "open with the system default app".
 - D-11: The macOS App Sandbox is off and the network client entitlement is on, so the app can run its bundled binaries.
+- D-16: Desktop progress comes from yt-dlp `--progress-template` lines on stdout (`FTUBE|...`), postprocessor lines on stderr (`FTUBE_PP|...`) and `--print after_move:FTUBE_FILE|<path>`. Partial files go to a per-job temp folder (`-P temp:`), deleted when the job ends. Local conversion reads `ffmpeg -progress pipe:1`. The `custom` preset passes `formatId` to `-f` as is, so it may be a full selector such as `399+ba`.
 - D-12: Lints use `flutter_lints` plus strict-casts, strict-inference and strict-raw-types.
 
 ## 6. Testing
@@ -397,15 +401,16 @@ flowchart LR
 
 ## 8. Constraints and risks
 
-- R-1: Bundled binaries add tens of MB per desktop build. Accepted.
-- R-2: Universal macOS binaries roughly double the size of the bundled ffmpeg. Accepted for a single `.app` (D-14). Verify in P3 that `yt-dlp_macos` is universal, and lipo it if not.
+- R-1: Bundled binaries are large. Unpacked, macOS is about 540 MB (deno 180, ffmpeg 161, ffprobe 161, yt-dlp 37) and Linux ffmpeg alone is 173 MB. Accepted; release archives compress this.
+- R-2: Resolved in P3: `yt-dlp_macos` is already universal. ffmpeg, ffprobe and deno are lipo'd, which roughly doubles their size.
 - R-3: "All files access" is a broad permission and users must grant it manually in system settings. If they refuse, Android downloads cannot run (D-13). Some OEM ROMs may behave differently, so P4 tests on an emulator at API 31 and on the latest API.
 - R-4: `youtube_explode_dart` breaks when YouTube changes, and some clients need a JS challenge solver. Android downloads may fail until the package is updated.
 - R-5: `ffmpeg_kit_flutter_new_audio` also declares desktop platforms, so desktop builds may include its libraries on top of the bundled CLI. Measure in P4 and exclude if possible.
 - R-6: Android has no background downloads in v1. Downloads stop if the OS kills the app, and a foreground-service notification is planned for v2.
 - R-7: Unsigned macOS and Windows builds trigger Gatekeeper and SmartScreen warnings. Bundled binaries inside a quarantined app may need the same `xattr` fix. Document it in the README.
 - R-8: The bundled ffmpeg and the PyInstaller yt-dlp binaries contain GPL code. Ftube is GPL-3.0, so this is compatible, but the notices and source links must ship with each release.
-- R-9: Bundled static ffmpeg builds and the ffmpeg_kit plugin may each require a newer macOS than 12.0. P3/P4 check their minimum versions, and D-15 is raised to match if needed.
+- R-9: The bundled ffmpeg builds target macOS 12.0 and yt-dlp 11.0 (resolved in P3). The ffmpeg_kit plugin is checked in P4.
+- R-10: On macOS and Linux, cancelling a download kills yt-dlp, but an ffmpeg child it started (merge or extract) may keep running until it finishes. Its output lands in the job temp folder, which is deleted.
 
 ## 9. Non-goals (v1)
 
