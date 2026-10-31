@@ -136,7 +136,7 @@ classDiagram
     <<interface>>
     +fetchInfo(String url) Future~MediaInfo~
     +download(DownloadRequest req) Stream~JobProgress~
-    +convert(File src, AudioTarget target, File dst) Stream~JobProgress~
+    +convert(File src, AudioTarget target, File dst, String jobId) Stream~JobProgress~
     +cancel(String jobId) Future~void~
   }
   class DownloadRequest {
@@ -168,6 +168,7 @@ classDiagram
     +String id
     +String container
     +String? resolution
+    +int? height
     +int? fps
     +int? bitrateKbps
     +int? sizeBytes

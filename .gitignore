@@ -55,3 +55,7 @@ coverage/
 
 # Bundled binaries (fetched at build time, see docs/spec.md D-2)
 third_party/bin/
+
+# Generated code (build_runner runs locally and in CI)
+*.g.dart
+*.freezed.dart

@@ -12,6 +12,7 @@ The Flutter version is pinned with [fvm](https://fvm.app) in `.fvmrc`.
 ```bash
 fvm install
 fvm flutter pub get
+fvm dart run build_runner build -d   # freezed code, not committed
 fvm flutter analyze
 fvm flutter test
 fvm flutter run -d macos   # or windows, linux, an Android device
