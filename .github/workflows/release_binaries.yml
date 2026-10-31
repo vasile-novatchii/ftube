@@ -1,0 +1,81 @@
+name: Release binaries
+
+# Publishes the mirrored desktop binaries the app installs on first launch
+# (docs/spec.md D-17). Push a tag binaries-rN on a commit whose
+# assets/binaries/catalog.json was built with --release binaries-rN.
+
+on:
+  push:
+    tags: ['binaries-r*']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build, check and publish
+    # Same OS and CPU as the machine that wrote the catalog, so gzip
+    # output is byte for byte identical.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build the files and check them against the catalog
+        run: dart run tool/package_binaries.dart --release "$GITHUB_REF_NAME" --check
+
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<NOTES
+          Desktop binaries that Ftube downloads on first launch. Not an app release.
+
+          Built from the upstream files pinned in [tool/binaries.yaml](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/tool/binaries.yaml):
+          [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense, PyInstaller bundle with GPL parts),
+          [FFmpeg](https://ffmpeg.org) (GPL builds by [Martin Riedl](https://ffmpeg.martin-riedl.de), [GyanD](https://github.com/GyanD/codexffmpeg) and [BtbN](https://github.com/BtbN/FFmpeg-Builds)),
+          and [Deno](https://github.com/denoland/deno) (MIT). Source code is available from those projects.
+          Each file is the unchanged upstream binary, gzipped.
+          NOTES
+          gh release create "$GITHUB_REF_NAME" build/binaries/release/* \
+            --prerelease --latest=false \
+            --title "Desktop binaries $GITHUB_REF_NAME" \
+            --notes-file notes.md
+
+  smoke:
+    name: Install smoke test (${{ matrix.os }})
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        shell: bash
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Install from the catalog and run every binary
+        run: dart run tool/install_binaries.dart

@@ -11,8 +11,7 @@ import 'desktop/fakes.dart';
 
 void main() {
   late Directory root;
-  late Directory bundled;
-  late Directory support;
+  late Directory bin;
   late MockProcessRunner runner;
   late BinaryService service;
 
@@ -21,15 +20,10 @@ void main() {
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('ftube_bin_test');
-    bundled = Directory(p.join(root.path, 'bundle'))..createSync();
-    support = Directory(p.join(root.path, 'support'))..createSync();
+    bin = Directory(p.join(root.path, 'support', 'bin'))
+      ..createSync(recursive: true);
     runner = MockProcessRunner();
-    service = BinaryService(
-      os: DesktopOs.macos,
-      bundledDir: bundled,
-      supportDir: support,
-      runner: runner,
-    );
+    service = BinaryService(os: DesktopOs.macos, binDir: bin, runner: runner);
   });
 
   tearDown(() => root.deleteSync(recursive: true));
@@ -43,26 +37,18 @@ void main() {
     expect(Binary.deno.fileName(DesktopOs.macos), 'deno');
   });
 
-  group('bundledDirFor', () {
-    test('uses the executable folder, and bundle/lib on Linux', () {
+  group('binDirFor', () {
+    test('is support/bin', () {
       expect(
-        BinaryService.bundledDirFor(
-          DesktopOs.macos,
-          '/Apps/Ftube.app/Contents/MacOS/ftube',
-        ).path,
-        '/Apps/Ftube.app/Contents/MacOS',
-      );
-      expect(
-        BinaryService.bundledDirFor(DesktopOs.linux, '/opt/ftube/ftube').path,
-        p.join('/opt/ftube', 'lib'),
+        BinaryService.binDirFor(Directory('/support')).path,
+        p.join('/support', 'bin'),
       );
     });
 
     test('FTUBE_BIN_DIR overrides it', () {
       expect(
-        BinaryService.bundledDirFor(
-          DesktopOs.linux,
-          '/opt/ftube/ftube',
+        BinaryService.binDirFor(
+          Directory('/support'),
           environment: {BinaryService.devOverrideEnv: '/dev/bin'},
         ).path,
         '/dev/bin',
@@ -71,8 +57,8 @@ void main() {
   });
 
   group('locate', () {
-    test('finds a bundled binary', () async {
-      final ffmpeg = touch(bundled, 'ffmpeg');
+    test('finds an installed binary', () async {
+      final ffmpeg = touch(bin, 'ffmpeg');
       expect((await service.locate(Binary.ffmpeg)).path, ffmpeg.path);
     });
 
@@ -81,12 +67,6 @@ void main() {
         service.locate(Binary.deno),
         throwsA(isA<BinaryMissing>().having((e) => e.binary, 'binary', 'deno')),
       );
-    });
-
-    test('prefers the updated yt-dlp copy', () async {
-      touch(bundled, 'yt-dlp_macos');
-      final copy = touch(support, p.join('bin', 'yt-dlp_macos'));
-      expect((await service.locate(Binary.ytDlp)).path, copy.path);
     });
   });
 
@@ -121,7 +101,7 @@ void main() {
     });
 
     test('runs the right flag', () async {
-      final ffmpeg = touch(bundled, 'ffmpeg');
+      final ffmpeg = touch(bin, 'ffmpeg');
       when(() => runner.run(ffmpeg.path, ['-version'])).thenAnswer(
         (_) async => const ProcessOutput(0, 'ffmpeg version 9.0.2 x', ''),
       );
@@ -132,7 +112,7 @@ void main() {
       expect(await service.version(Binary.ffprobe), isNull);
       verifyNever(() => runner.run(any(), any()));
 
-      final yt = touch(bundled, 'yt-dlp_macos');
+      final yt = touch(bin, 'yt-dlp_macos');
       when(() => runner.run(yt.path, ['--version']))
           .thenAnswer((_) async => const ProcessOutput(1, '', 'boom'));
       expect(await service.version(Binary.ytDlp), isNull);
@@ -144,34 +124,18 @@ void main() {
   });
 
   group('updateYtDlp', () {
-    late File copy;
-
-    setUp(() {
-      copy = File(p.join(support.path, 'bin', 'yt-dlp_macos'));
-      when(() => runner.run('chmod', any()))
-          .thenAnswer((_) async => const ProcessOutput(0, '', ''));
-    });
-
-    test('copies the bundled binary once, then updates the copy', () async {
-      touch(bundled, 'yt-dlp_macos').writeAsStringSync('bundled');
-      when(() => runner.run(copy.path, ['-U']))
+    test('runs -U on the installed yt-dlp and reads the new version', () async {
+      final yt = touch(bin, 'yt-dlp_macos');
+      when(() => runner.run(yt.path, ['-U']))
           .thenAnswer((_) async => const ProcessOutput(0, 'Updated', ''));
-      when(() => runner.run(copy.path, ['--version']))
+      when(() => runner.run(yt.path, ['--version']))
           .thenAnswer((_) async => const ProcessOutput(0, '2026.11.01\n', ''));
-
       expect(await service.updateYtDlp(), '2026.11.01');
-      expect(copy.readAsStringSync(), 'bundled');
-      verify(() => runner.run('chmod', ['755', copy.path])).called(1);
-
-      copy.writeAsStringSync('updated');
-      await service.updateYtDlp();
-      expect(copy.readAsStringSync(), 'updated', reason: 'not copied again');
-      verifyNever(() => runner.run('chmod', any()));
     });
 
     test('throws ProcessFailed when -U fails', () async {
-      touch(bundled, 'yt-dlp_macos');
-      when(() => runner.run(copy.path, ['-U']))
+      final yt = touch(bin, 'yt-dlp_macos');
+      when(() => runner.run(yt.path, ['-U']))
           .thenAnswer((_) async => const ProcessOutput(1, '', 'ERROR: no net'));
       await expectLater(
         service.updateYtDlp(),
@@ -185,8 +149,9 @@ void main() {
       );
     });
 
-    test('throws BinaryMissing without a bundled yt-dlp', () async {
+    test('throws BinaryMissing when yt-dlp is not installed', () async {
       await expectLater(service.updateYtDlp(), throwsA(isA<BinaryMissing>()));
+      verifyNever(() => runner.run(any(), any()));
     });
   });
 }

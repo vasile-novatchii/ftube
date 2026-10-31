@@ -8,6 +8,7 @@ void main() {
       Unsupported(),
       Network(),
       BinaryMissing('yt-dlp'),
+      ChecksumMismatch('ffmpeg'),
       ProcessFailed(1, ''),
       StoragePermission(),
       Cancelled(),

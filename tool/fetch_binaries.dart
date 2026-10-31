@@ -9,12 +9,16 @@
 // --smoke     runs each binary's version command afterwards (host platform
 //             only).
 //
+// Used for development (FTUBE_BIN_DIR, spec D-3). The app itself installs
+// the binaries on first launch from the catalog (D-17, D-18).
+//
 // Downloads are cached by checksum in .dart_tool/ftube_binaries/. Universal
 // macOS binaries are built with lipo, so --platform macos needs a Mac.
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'src/binaries_manifest.dart';
+import 'src/fetch.dart';
 
 Future<void> main(List<String> args) async {
   try {
@@ -36,67 +40,35 @@ Future<void> _run(List<String> args) async {
     throw ArgumentError('unsupported platform "$platform"');
   }
   final outDir = Directory(option('--out') ?? 'build/binaries/$platform');
-  final cacheDir = Directory('.dart_tool/ftube_binaries');
-  final manifest = parseManifest(
-    await File('tool/binaries.yaml').readAsString(),
+  final files = await fetchPlatform(
+    platform,
+    cacheDir: Directory('.dart_tool/ftube_binaries'),
   );
-  final artifacts = manifest[platform] ?? const [];
-
   await outDir.create(recursive: true);
-  await cacheDir.create(recursive: true);
 
   // Output name -> slices to merge with lipo (arch -> bytes).
   final slices = <String, Map<String, Uint8List>>{};
-  for (final artifact in artifacts) {
-    final bytes = await _download(artifact, cacheDir);
-    final files = extractFiles(artifact, bytes);
-    for (final MapEntry(key: name, value: content) in files.entries) {
-      final arch = artifact.arch;
-      if (arch == null) {
-        await _writeExecutable(File('${outDir.path}/$name'), content);
-      } else {
-        (slices[name] ??= {})[arch] = content;
-      }
+  for (final file in files) {
+    if (file.arch == null) {
+      await _writeExecutable(File('${outDir.path}/${file.name}'), file.bytes);
+    } else {
+      (slices[file.name] ??= {})[file.arch!] = file.bytes;
     }
   }
   for (final MapEntry(key: name, value: byArch) in slices.entries) {
     await _lipo(outDir, name, byArch);
   }
 
-  final names = {for (final a in artifacts) ...a.files.values}.toList()..sort();
+  final names = {for (final f in files) f.name}.toList()..sort();
   stdout.writeln(
     'Binaries for $platform in ${outDir.path}: ${names.join(', ')}',
   );
   if (args.contains('--smoke')) await _smoke(outDir, names);
 }
 
-Future<Uint8List> _download(Artifact artifact, Directory cacheDir) async {
-  final cached = File('${cacheDir.path}/${artifact.sha256}');
-  if (cached.existsSync()) {
-    final bytes = await cached.readAsBytes();
-    if (sha256Hex(bytes) == artifact.sha256) return bytes;
-  }
-  stdout.writeln('Downloading ${artifact.url}');
-  final client = HttpClient();
-  try {
-    final response = await (await client.getUrl(artifact.url)).close();
-    if (response.statusCode != HttpStatus.ok) {
-      throw HttpException('HTTP ${response.statusCode}', uri: artifact.url);
-    }
-    final builder = BytesBuilder(copy: false);
-    await response.forEach(builder.add);
-    final bytes = builder.takeBytes();
-    verifyChecksum(artifact, bytes);
-    await cached.writeAsBytes(bytes, flush: true);
-    return bytes;
-  } finally {
-    client.close();
-  }
-}
-
 Future<void> _writeExecutable(File file, List<int> content) async {
   await file.writeAsBytes(content, flush: true);
-  if (!Platform.isWindows) await _exec('chmod', ['755', file.path]);
+  if (!Platform.isWindows) await exec('chmod', ['755', file.path]);
 }
 
 Future<void> _lipo(
@@ -116,9 +88,9 @@ Future<void> _lipo(
       inputs.add(slice.path);
     }
     final out = '${outDir.path}/$name';
-    await _exec('lipo', ['-create', ...inputs, '-output', out]);
-    await _exec('chmod', ['755', out]);
-    final archs = (await _exec('lipo', ['-archs', out])).trim().split(' ');
+    await exec('lipo', ['-create', ...inputs, '-output', out]);
+    await exec('chmod', ['755', out]);
+    final archs = (await exec('lipo', ['-archs', out])).trim().split(' ');
     for (final arch in byArch.keys) {
       if (!archs.contains(arch)) {
         throw StateError('$name is missing $arch after lipo: $archs');
@@ -132,20 +104,7 @@ Future<void> _lipo(
 Future<void> _smoke(Directory outDir, List<String> names) async {
   for (final name in names) {
     final flag = name.startsWith('ff') ? '-version' : '--version';
-    final out = await _exec('${outDir.path}/$name', [flag]);
+    final out = await exec('${outDir.path}/$name', [flag]);
     stdout.writeln('$name: ${out.split('\n').first.trim()}');
   }
-}
-
-Future<String> _exec(String executable, List<String> args) async {
-  final result = await Process.run(executable, args);
-  if (result.exitCode != 0) {
-    throw ProcessException(
-      executable,
-      args,
-      '${result.stderr}'.trim(),
-      result.exitCode,
-    );
-  }
-  return '${result.stdout}';
 }

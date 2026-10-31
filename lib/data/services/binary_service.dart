@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../domain/exceptions/ftube_exception.dart';
 import 'process_runner.dart';
 
-/// Desktop operating systems that ship bundled binaries.
+/// Desktop operating systems with their own binaries.
 enum DesktopOs {
   macos,
   windows,
@@ -19,7 +19,7 @@ enum DesktopOs {
   }
 }
 
-/// Binaries bundled with the desktop builds (D-1).
+/// Binaries the desktop app runs (D-1).
 enum Binary {
   ytDlp('yt-dlp'),
   ffmpeg('ffmpeg'),
@@ -41,26 +41,21 @@ enum Binary {
   };
 }
 
-/// Locates the bundled binaries, reports their versions and updates yt-dlp.
+/// Locates the desktop binaries, reports their versions and updates yt-dlp.
 ///
-/// Binaries live next to the app executable (D-3). "Update yt-dlp" works on
-/// a copy in [supportDir], which then takes precedence over the read-only
-/// bundled copy (D-4).
+/// The binaries live in `<app support>/bin`, where `BinaryInstaller` puts
+/// them on first launch (D-3, D-18).
 class BinaryService {
   BinaryService({
     required this.os,
-    required this.bundledDir,
-    required this.supportDir,
+    required this.binDir,
     required this._runner,
   });
 
   final DesktopOs os;
 
-  /// Folder with the bundled binaries.
-  final Directory bundledDir;
-
-  /// Writable app support folder for the updatable yt-dlp copy.
-  final Directory supportDir;
+  /// Folder with the installed binaries.
+  final Directory binDir;
 
   final ProcessRunner _runner;
 
@@ -68,30 +63,19 @@ class BinaryService {
   /// example `build/binaries/macos` from `tool/fetch_binaries.dart`.
   static const devOverrideEnv = 'FTUBE_BIN_DIR';
 
-  /// Where the bundled binaries are for an app at [resolvedExecutable]:
-  /// `Contents/MacOS` on macOS, the `.exe` folder on Windows and
-  /// `bundle/lib` on Linux.
-  static Directory bundledDirFor(
-    DesktopOs os,
-    String resolvedExecutable, {
+  /// `<supportDir>/bin`, unless [devOverrideEnv] is set in [environment].
+  static Directory binDirFor(
+    Directory supportDir, {
     Map<String, String> environment = const {},
   }) {
     final override = environment[devOverrideEnv];
     if (override != null && override.isNotEmpty) return Directory(override);
-    final exeDir = p.dirname(resolvedExecutable);
-    return Directory(os == DesktopOs.linux ? p.join(exeDir, 'lib') : exeDir);
+    return Directory(p.join(supportDir.path, 'bin'));
   }
-
-  File _bundled(Binary binary) =>
-      File(p.join(bundledDir.path, binary.fileName(os)));
-
-  File get _ytDlpCopy =>
-      File(p.join(supportDir.path, 'bin', Binary.ytDlp.fileName(os)));
 
   /// The file to run for [binary]. Throws [BinaryMissing] if it is absent.
   Future<File> locate(Binary binary) async {
-    if (binary == Binary.ytDlp && _ytDlpCopy.existsSync()) return _ytDlpCopy;
-    final file = _bundled(binary);
+    final file = File(p.join(binDir.path, binary.fileName(os)));
     if (file.existsSync()) return file;
     throw BinaryMissing(binary.label);
   }
@@ -133,23 +117,13 @@ class BinaryService {
     return match?.group(1);
   }
 
-  /// Runs `yt-dlp -U` on the writable copy and returns the new version.
+  /// Runs `yt-dlp -U` on the installed yt-dlp and returns the new version.
   ///
-  /// The first update copies the bundled yt-dlp into [supportDir]. Throws
-  /// [BinaryMissing] when there is nothing to copy and [ProcessFailed] when
-  /// the update fails.
+  /// Throws [BinaryMissing] when yt-dlp is not installed and
+  /// [ProcessFailed] when the update fails.
   Future<String?> updateYtDlp() async {
-    final copy = _ytDlpCopy;
-    if (!copy.existsSync()) {
-      final bundled = _bundled(Binary.ytDlp);
-      if (!bundled.existsSync()) throw BinaryMissing(Binary.ytDlp.label);
-      await copy.parent.create(recursive: true);
-      await bundled.copy(copy.path);
-      if (os != DesktopOs.windows) {
-        await _runner.run('chmod', ['755', copy.path]);
-      }
-    }
-    final out = await _runner.run(copy.path, ['-U']);
+    final ytDlp = await locate(Binary.ytDlp);
+    final out = await _runner.run(ytDlp.path, ['-U']);
     if (out.exitCode != 0) {
       throw ProcessFailed.fromStderr(out.exitCode, out.stderr);
     }

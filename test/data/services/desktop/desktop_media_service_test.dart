@@ -32,12 +32,7 @@ void main() {
     }
     runner = MockProcessRunner();
     service = DesktopMediaService(
-      binaries: BinaryService(
-        os: DesktopOs.linux,
-        bundledDir: bin,
-        supportDir: Directory(p.join(root.path, 'support')),
-        runner: runner,
-      ),
+      binaries: BinaryService(os: DesktopOs.linux, binDir: bin, runner: runner),
       runner: runner,
       tempRoot: temp,
     );

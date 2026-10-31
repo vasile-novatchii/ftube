@@ -3,9 +3,9 @@ name: Binaries
 on:
   push:
     branches: [main]
-    paths: [tool/**, .github/workflows/binaries.yml]
+    paths: [tool/**, assets/binaries/**, .github/workflows/binaries.yml]
   pull_request:
-    paths: [tool/**, .github/workflows/binaries.yml]
+    paths: [tool/**, assets/binaries/**, .github/workflows/binaries.yml]
   workflow_dispatch:
 
 concurrency:
@@ -47,3 +47,27 @@ jobs:
             lipo -archs "$f" | grep -q arm64
             lipo -archs "$f" | grep -q x86_64
           done
+
+  catalog:
+    name: Catalog matches tool/binaries.yaml
+    # The machine type that wrote the catalog, see release_binaries.yml.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Rebuild the mirrored files and compare
+        run: |
+          release=$(jq -r .release assets/binaries/catalog.json)
+          dart run tool/package_binaries.dart --release "$release" --check

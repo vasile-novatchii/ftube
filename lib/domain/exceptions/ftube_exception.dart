@@ -27,9 +27,16 @@ final class Network extends FtubeException {
   const Network([super.detail]);
 }
 
-/// A bundled binary (yt-dlp, ffmpeg, ffprobe) could not be found or run.
+/// A binary (yt-dlp, ffmpeg, ffprobe, deno) could not be found or run.
 final class BinaryMissing extends FtubeException {
   const BinaryMissing(this.binary) : super(binary);
+
+  final String binary;
+}
+
+/// A downloaded binary did not match the SHA-256 in the catalog.
+final class ChecksumMismatch extends FtubeException {
+  const ChecksumMismatch(this.binary) : super(binary);
 
   final String binary;
 }

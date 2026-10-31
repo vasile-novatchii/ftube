@@ -1,0 +1,133 @@
+{
+  "release": "binaries-r1",
+  "entries": [
+    {
+      "binary": "yt-dlp",
+      "os": "macos",
+      "arch": "arm64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/yt-dlp-macos-universal.gz",
+      "sha256": "b349d13333fd81723f288241520122243f876ee326c82d92cac2814238d64213",
+      "size": 37046879
+    },
+    {
+      "binary": "yt-dlp",
+      "os": "macos",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/yt-dlp-macos-universal.gz",
+      "sha256": "b349d13333fd81723f288241520122243f876ee326c82d92cac2814238d64213",
+      "size": 37046879
+    },
+    {
+      "binary": "ffmpeg",
+      "os": "macos",
+      "arch": "arm64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffmpeg-macos-arm64.gz",
+      "sha256": "bdad6076ba442c2c9d81e382f11ee88679245e6f615839602018482b8c7ca1f6",
+      "size": 29683712
+    },
+    {
+      "binary": "ffmpeg",
+      "os": "macos",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffmpeg-macos-x86_64.gz",
+      "sha256": "5567f378038a3e2a219aaaaaccebac2fcc1ec513c2088c0e13fcc849e6b23a9f",
+      "size": 34420174
+    },
+    {
+      "binary": "ffprobe",
+      "os": "macos",
+      "arch": "arm64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffprobe-macos-arm64.gz",
+      "sha256": "cc79a28f8045bf9f01325789b0225e9fad7397d284ab3bd74d9762ecf9c89b71",
+      "size": 29599800
+    },
+    {
+      "binary": "ffprobe",
+      "os": "macos",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffprobe-macos-x86_64.gz",
+      "sha256": "a4f19084e0e1124d088140f9ee611d456ff2c9e3d1d6730f78a226b9657a23f7",
+      "size": 34316206
+    },
+    {
+      "binary": "deno",
+      "os": "macos",
+      "arch": "arm64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/deno-macos-arm64.gz",
+      "sha256": "eea573c9667c883c2e558a377cf9c049e53258090c7e5c1dcae8c61c5bd84c4d",
+      "size": 39930227
+    },
+    {
+      "binary": "deno",
+      "os": "macos",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/deno-macos-x86_64.gz",
+      "sha256": "51c1ec80e0d6e94a932cb3c3a00071a05143afa5b261b7b8388be3527f66fd8e",
+      "size": 43437127
+    },
+    {
+      "binary": "yt-dlp",
+      "os": "windows",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/yt-dlp-windows-x86_64.gz",
+      "sha256": "a0d912b3f6758ffd0c13d14d854e5996cc4ef0202aa7974ab84c19ea9cea4949",
+      "size": 23369225
+    },
+    {
+      "binary": "ffmpeg",
+      "os": "windows",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffmpeg-windows-x86_64.gz",
+      "sha256": "94154da0516965cdc8157a2de25ac3d3b213ddcac4253d36b5d1f551dc02b438",
+      "size": 39602077
+    },
+    {
+      "binary": "ffprobe",
+      "os": "windows",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffprobe-windows-x86_64.gz",
+      "sha256": "3dfed92ea8cec1cb2ef2c5442fb0c7c26714f0f22db110d2a6b8bd4badc17f62",
+      "size": 39494712
+    },
+    {
+      "binary": "deno",
+      "os": "windows",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/deno-windows-x86_64.gz",
+      "sha256": "2195f4ff13047df029c81c4ebe97ba4fd76e67e5affec8b7b69f8a51271b61cd",
+      "size": 42607178
+    },
+    {
+      "binary": "yt-dlp",
+      "os": "linux",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/yt-dlp-linux-x86_64.gz",
+      "sha256": "61a47ebe4804dc9fd000c26d292d66e53dee5a6cd3cfa372d5775267518f5acc",
+      "size": 40767679
+    },
+    {
+      "binary": "ffmpeg",
+      "os": "linux",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffmpeg-linux-x86_64.gz",
+      "sha256": "0ac426b83caa1fd0b4a67c248aee4c450203d141d4645c004c6b937ef4ec4f89",
+      "size": 69314019
+    },
+    {
+      "binary": "ffprobe",
+      "os": "linux",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/ffprobe-linux-x86_64.gz",
+      "sha256": "eefc083bd7fa1975704600644204c1a6ba46cc71d807675280c801cc63756a44",
+      "size": 69196994
+    },
+    {
+      "binary": "deno",
+      "os": "linux",
+      "arch": "x86_64",
+      "url": "https://github.com/vasile-novatchii/ftube/releases/download/binaries-r1/deno-linux-x86_64.gz",
+      "sha256": "278ca64b6c10a7c7985a89c69e6a4d4ae457686b2fb49192394e8f0ea4960214",
+      "size": 42667532
+    }
+  ]
+}
