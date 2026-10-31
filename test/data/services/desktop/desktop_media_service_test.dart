@@ -282,10 +282,14 @@ void main() {
 
     test('before the process starts, it never runs for long', () async {
       final process = FakeProcess();
+      final called = Completer<void>();
       final started = Completer<RunningProcess>();
-      when(() => runner.start(any(), any())).thenAnswer((_) => started.future);
+      when(() => runner.start(any(), any())).thenAnswer((_) {
+        called.complete();
+        return started.future;
+      });
       final result = service.download(request(QualityPreset.best)).toList();
-      await pumpEventQueue();
+      await called.future;
 
       await service.cancel('j1');
       started.complete(process);
