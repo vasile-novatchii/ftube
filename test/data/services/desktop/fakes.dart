@@ -10,7 +10,15 @@ class FakeProcess implements RunningProcess {
   final _out = StreamController<String>();
   final _err = StreamController<String>();
   final _exit = Completer<int>();
+  final _started = Completer<void>();
   int killCount = 0;
+
+  /// Completes once the runner has handed this process to the service.
+  Future<void> get started => _started.future;
+
+  void markStarted() {
+    if (!_started.isCompleted) _started.complete();
+  }
 
   /// Exit code used when the process is killed.
   static const killedExitCode = -15;

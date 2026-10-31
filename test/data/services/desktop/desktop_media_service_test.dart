@@ -50,6 +50,7 @@ void main() {
     late List<String> args;
     when(() => runner.start(any(), any())).thenAnswer((inv) async {
       args = inv.positionalArguments[1] as List<String>;
+      process.markStarted();
       return process;
     });
     return () => args;
@@ -146,6 +147,7 @@ void main() {
           .listen(events.add)
           .asFuture<void>();
 
+      await process.started;
       await pumpEventQueue();
       expect(temp.listSync().single.path, p.join(temp.path, 'j1'));
       expect(out.existsSync(), isTrue);
@@ -190,6 +192,7 @@ void main() {
           .download(request(QualityPreset.audioMp3))
           .listen(events.add)
           .asFuture<void>();
+      await process.started;
       await pumpEventQueue();
       process
         ..out('FTUBE|downloading|50|100|NA|1|1|none')
@@ -210,6 +213,7 @@ void main() {
       final process = FakeProcess();
       onStart(process);
       final result = service.download(request(QualityPreset.p720)).toList();
+      await process.started;
       await pumpEventQueue();
       process.err('ERROR: [youtube] x: Video unavailable');
       await process.finish(1);
@@ -249,6 +253,7 @@ void main() {
       final process = FakeProcess();
       onStart(process);
       final first = service.download(request(QualityPreset.best)).toList();
+      await process.started;
       await pumpEventQueue();
       await expectLater(
         service.download(request(QualityPreset.best)).toList(),
@@ -264,6 +269,7 @@ void main() {
       final process = FakeProcess();
       onStart(process);
       final result = service.download(request(QualityPreset.best)).toList();
+      await process.started;
       await pumpEventQueue();
       process.out('FTUBE|downloading|1|10|NA|1|1|avc1');
 
@@ -292,6 +298,7 @@ void main() {
       final process = FakeProcess();
       onStart(process);
       final sub = service.download(request(QualityPreset.best)).listen(null);
+      await process.started;
       await pumpEventQueue();
       await sub.cancel();
       expect(process.killCount, 1);
@@ -321,6 +328,7 @@ void main() {
           .convert(src, AudioTarget.mp3, dst, jobId: 'c1')
           .listen(events.add)
           .asFuture<void>();
+      await process.started;
       await pumpEventQueue();
       process
         ..out('out_time_us=2500000')
@@ -350,6 +358,7 @@ void main() {
           .convert(src, AudioTarget.ogg, dst, jobId: 'c1')
           .listen(events.add)
           .asFuture<void>();
+      await process.started;
       await pumpEventQueue();
       process.out('out_time_us=2500000');
       await process.finish(0);
@@ -366,6 +375,7 @@ void main() {
       final result = service
           .convert(src, AudioTarget.mp3, dst, jobId: 'c1')
           .toList();
+      await process.started;
       await pumpEventQueue();
       dst.writeAsStringSync('partial');
       process.err('Error opening output');
@@ -382,6 +392,7 @@ void main() {
       final result = service
           .convert(src, AudioTarget.mp3, dst, jobId: 'c1')
           .toList();
+      await process.started;
       await pumpEventQueue();
       await service.cancel('c1');
 
