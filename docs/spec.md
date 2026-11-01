@@ -411,7 +411,7 @@ stateDiagram-v2
 | Smoke | One short download per OS with the installed binaries | CI release job + `docs/release.md` checklist |
 
 - Coverage gate: at least 85% line coverage for `lib/data/` and `lib/ui/**/view_model*`, enforced in CI.
-- CI (GitHub Actions) runs analyze, format check and tests with coverage on every push and PR. Tags `v*` build macOS, Windows, Linux and Android and run the smoke test.
+- CI (GitHub Actions, `ci.yml`) runs analyze, format check, tests with coverage and `tool/coverage_gate.dart` on every push and PR. Tags `v*` run `release.yml`: the same checks, then builds for macOS, Windows, Linux and Android, the binaries install and `tool/smoke_download.dart` on each desktop OS, and a GitHub Release.
 
 ## 7. Phases (one clean commit per phase)
 

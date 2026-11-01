@@ -3,7 +3,52 @@
 Download and convert media on macOS, Windows, Linux and Android.
 A Flutter port of [`ftube.sh`](https://github.com/vasile-novatchii/Linux-Features/blob/master/ftube.sh).
 
-> Status: early development. See [docs/spec.md](docs/spec.md) for the full specification and phase plan.
+> Status: first release, v0.1.0. See [docs/spec.md](docs/spec.md) for the full specification.
+
+## Install
+
+Download the file for your system from the [latest release](https://github.com/vasile-novatchii/ftube/releases/latest).
+
+| System | File | Needs |
+|---|---|---|
+| macOS (Apple silicon and Intel) | `Ftube-<version>-macos.zip` | macOS 12 or later |
+| Windows | `Ftube-<version>-windows.zip` | Windows 10 or later, x64 |
+| Linux | `Ftube-<version>-linux.tar.gz` | x64 with GTK 3 |
+| Android | `Ftube-<version>-android.apk` | Android 12 or later |
+
+On first launch the desktop app downloads yt-dlp, ffmpeg, ffprobe and Deno (a few hundred MB) into its app support folder, so it needs internet once. Downloads go to `Downloads/Ftube`.
+
+### macOS
+
+1. Unzip the file and move `Ftube.app` to `Applications`.
+2. The app is not signed, so macOS says it "cannot be opened" or "is damaged". Remove the quarantine flag once:
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Ftube.app
+   ```
+
+   Or open it once with right-click > **Open**, or allow it under **System Settings > Privacy & Security > Open Anyway**.
+
+### Windows
+
+1. Unzip the file anywhere, for example to `%LOCALAPPDATA%\Programs\Ftube`.
+2. Run `ftube.exe`. The app is not signed, so SmartScreen may show "Windows protected your PC". Click **More info > Run anyway**.
+
+### Linux
+
+```bash
+mkdir -p ~/.local/opt && tar -xzf Ftube-*-linux.tar.gz -C ~/.local/opt
+~/.local/opt/Ftube-*-linux/ftube
+```
+
+The app needs GTK 3 (`libgtk-3-0`), which most desktops already have.
+
+### Android
+
+1. Open the APK on the phone and allow installing from this source when asked.
+2. On first launch, grant **All files access**. Ftube needs it to save to and manage `Download/Ftube`, including files from a previous install.
+
+Updates install over the previous version as long as both APKs come from this repo's releases.
 
 ## Development
 
@@ -14,7 +59,8 @@ fvm install
 fvm flutter pub get
 fvm dart run build_runner build -d   # freezed code, not committed
 fvm flutter analyze
-fvm flutter test
+fvm flutter test --coverage
+fvm dart run tool/coverage_gate.dart   # at least 85% for lib/data and view models
 fvm flutter run -d macos   # or windows, linux, an Android device
 ```
 
@@ -39,6 +85,10 @@ fvm dart run tool/fetch_binaries.dart --smoke   # into build/binaries/<os>
 FTUBE_BIN_DIR=$PWD/build/binaries/macos fvm flutter run -d macos
 ```
 
+### Releasing
+
+Follow [docs/release.md](docs/release.md), then push a tag `vX.Y.Z` that matches the `pubspec.yaml` version. The `Release` workflow checks the code, builds macOS (universal), Windows, Linux and Android, and publishes them to a GitHub Release.
+
 ## License
 
-[GPL-3.0](LICENSE)
+[GPL-3.0](LICENSE). Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

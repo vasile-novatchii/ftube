@@ -1,0 +1,189 @@
+name: Release
+
+# Builds the app for every target and publishes a GitHub Release
+# (docs/spec.md DoD-8). Push a tag vX.Y.Z on a commit whose pubspec.yaml
+# version is X.Y.Z, after the checklist in docs/release.md.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    name: Check
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build (${{ matrix.target }})
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos
+            os: macos-latest
+          - target: windows
+            os: windows-latest
+          - target: linux
+            os: ubuntu-latest
+          - target: android
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read versions
+        id: v
+        run: |
+          echo "flutter=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+          version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match pubspec.yaml version $version"
+            exit 1
+          fi
+          echo "name=Ftube-$version-${{ matrix.target }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux build dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - uses: actions/setup-java@v5
+        if: matrix.target == 'android'
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.v.outputs.flutter }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build -d
+
+      - name: Build macOS
+        if: matrix.target == 'macos'
+        run: |
+          flutter build macos --release
+          app=build/macos/Build/Products/Release/ftube.app
+          archs=$(lipo -archs "$app/Contents/MacOS/ftube")
+          echo "App binary architectures: $archs"
+          echo "$archs" | grep -q x86_64
+          echo "$archs" | grep -q arm64
+          mkdir -p "dist/${{ steps.v.outputs.name }}"
+          cp -R "$app" "dist/${{ steps.v.outputs.name }}/Ftube.app"
+
+      - name: Build Windows
+        if: matrix.target == 'windows'
+        run: |
+          flutter build windows --release
+          mkdir -p "dist/${{ steps.v.outputs.name }}"
+          cp -R build/windows/x64/runner/Release/. "dist/${{ steps.v.outputs.name }}/"
+
+      - name: Build Linux
+        if: matrix.target == 'linux'
+        run: |
+          flutter build linux --release
+          mkdir -p "dist/${{ steps.v.outputs.name }}"
+          cp -R build/linux/x64/release/bundle/. "dist/${{ steps.v.outputs.name }}/"
+
+      - name: Build Android
+        if: matrix.target == 'android'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FTUBE_KEYSTORE_BASE64 }}
+          FTUBE_KEYSTORE_PASSWORD: ${{ secrets.FTUBE_KEYSTORE_PASSWORD }}
+          FTUBE_KEY_ALIAS: ${{ secrets.FTUBE_KEY_ALIAS }}
+          FTUBE_KEY_PASSWORD: ${{ secrets.FTUBE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export FTUBE_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          else
+            echo "::warning::No release keystore secret; the APK is signed with a throwaway debug key"
+          fi
+          flutter build apk --release
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ steps.v.outputs.name }}.apk"
+
+      - name: Add license and notices
+        if: matrix.target != 'android'
+        run: cp LICENSE THIRD_PARTY_NOTICES.md "dist/${{ steps.v.outputs.name }}/"
+
+      - name: Package
+        working-directory: dist
+        run: |
+          name="${{ steps.v.outputs.name }}"
+          case "${{ matrix.target }}" in
+            macos) ditto -c -k --sequesterRsrc --keepParent "$name" "$name.zip" ;;
+            windows) 7z a -tzip "$name.zip" "$name" > /dev/null ;;
+            linux) tar -czf "$name.tar.gz" "$name" ;;
+          esac
+          [ "${{ matrix.target }}" = android ] || rm -rf "$name"
+          ls -l
+
+      - name: Report size
+        run: |
+          {
+            echo "### ${{ matrix.target }}"
+            echo '```'
+            ls -lh dist
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Install the desktop binaries
+        if: matrix.target != 'android'
+        run: dart run tool/install_binaries.dart
+
+      # YouTube often blocks datacenter IPs, so a failure here is a warning;
+      # docs/release.md repeats the download by hand on each OS.
+      - name: Smoke download
+        if: matrix.target != 'android'
+        continue-on-error: true
+        run: dart run tool/smoke_download.dart
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<NOTES
+          Install steps per OS are in the [README](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/README.md#install).
+          The macOS and Windows builds are not signed, so the first launch shows a warning; the README explains how to open them.
+
+          On first launch the desktop app downloads yt-dlp, ffmpeg, ffprobe and Deno from the
+          \`$(jq -r .release assets/binaries/catalog.json)\` pre-release. Licenses and sources of all
+          third-party components: [THIRD_PARTY_NOTICES.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/THIRD_PARTY_NOTICES.md).
+          NOTES
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Ftube ${GITHUB_REF_NAME#v}" \
+            --notes-file notes.md \
+            --generate-notes \
+            --verify-tag

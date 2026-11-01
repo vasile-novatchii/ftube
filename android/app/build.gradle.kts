@@ -1,8 +1,20 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Release signing: android/key.properties locally, FTUBE_KEYSTORE_* in CI.
+// Without either, release builds fall back to the debug key.
+val keyProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+fun signingValue(property: String, env: String): String? =
+    keyProperties.getProperty(property) ?: System.getenv(env)
+val releaseStoreFile = signingValue("storeFile", "FTUBE_KEYSTORE_FILE")
 
 android {
     namespace = "io.github.infvyr.ftube"
@@ -30,11 +42,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = signingValue("storePassword", "FTUBE_KEYSTORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "FTUBE_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "FTUBE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(
+                if (releaseStoreFile != null) "release" else "debug",
+            )
         }
     }
 }

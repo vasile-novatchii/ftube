@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -39,3 +40,6 @@ jobs:
 
       - name: Test
         run: flutter test --coverage
+
+      - name: Coverage gate
+        run: dart run tool/coverage_gate.dart --min 85
