@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit_config.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
 
@@ -36,6 +37,9 @@ abstract interface class FfmpegRunner {
 
   /// Duration of the media at [path], or null when unknown.
   Future<Duration?> probeDuration(String path);
+
+  /// Version of the bundled FFmpeg, or null when unknown.
+  Future<String?> version();
 }
 
 /// [FfmpegRunner] backed by `ffmpeg_kit_flutter_new_audio`.
@@ -77,6 +81,15 @@ class KitFfmpegRunner implements FfmpegRunner {
     );
     if (seconds == null || seconds <= 0) return null;
     return Duration(microseconds: (seconds * 1e6).round());
+  }
+
+  @override
+  Future<String?> version() async {
+    try {
+      return await FFmpegKitConfig.getFFmpegVersion();
+    } on Object {
+      return null;
+    }
   }
 }
 

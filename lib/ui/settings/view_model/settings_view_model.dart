@@ -1,0 +1,190 @@
+import 'dart:async';
+
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../../../config/providers.dart';
+import '../../../data/repositories/settings_repository.dart';
+import '../../../data/services/android/storage_permission_service.dart';
+import '../../../data/services/binary_service.dart';
+import '../../../domain/models/app_settings.dart';
+import '../../../domain/models/quality_preset.dart';
+
+part 'settings_view_model.freezed.dart';
+part 'settings_view_model.g.dart';
+
+enum UpdateStatus { idle, running, done, failed }
+
+@freezed
+abstract class SettingsState with _$SettingsState {
+  const factory SettingsState({
+    required AppSettings settings,
+    required bool isDesktop,
+
+    /// `Downloads/Ftube` for this platform, once resolved.
+    String? defaultDownloadDir,
+    String? appVersion,
+    @Default(true) bool loadingVersions,
+
+    /// Null when not installed or unknown.
+    String? ytDlpVersion,
+    String? ffmpegVersion,
+    @Default(UpdateStatus.idle) UpdateStatus ytDlpUpdate,
+    Object? ytDlpUpdateError,
+
+    /// Android only. Null until checked, and always null on desktop.
+    StorageAccess? storageAccess,
+  }) = _SettingsState;
+
+  const SettingsState._();
+
+  /// The folder downloads go to, or null while the default is unknown.
+  // `this.` because the provider function of the same name is in scope.
+  String? get downloadDir => settings.downloadDir ?? this.defaultDownloadDir;
+
+  bool get usesDefaultDir => settings.downloadDir == null;
+
+  /// Android stores files through plain paths in the public Downloads
+  /// folder (D-13), and its folder picker returns content URIs instead.
+  bool get canChangeDownloadDir => isDesktop;
+}
+
+/// Presets offered as the default quality. `custom` needs a format picked
+/// per video, so it is not one of them.
+const defaultPresetChoices = [
+  QualityPreset.best,
+  QualityPreset.p1080,
+  QualityPreset.p720,
+  QualityPreset.p480,
+  QualityPreset.audioMp3,
+  QualityPreset.audioOgg,
+];
+
+@riverpod
+class SettingsViewModel extends _$SettingsViewModel {
+  SettingsRepository get _repo => ref.read(settingsRepositoryProvider);
+
+  @override
+  SettingsState build() {
+    ref.listen(
+      currentSettingsProvider,
+      (_, settings) => state = state.copyWith(settings: settings),
+    );
+    unawaited(_load());
+    return SettingsState(
+      settings: ref.read(currentSettingsProvider),
+      isDesktop: ref.read(appPlatformProvider).isDesktop,
+    );
+  }
+
+  Future<void> _load() async {
+    await Future.wait([
+      _loadVersions(),
+      refreshStorageAccess(),
+      ref.read(defaultDownloadDirProvider.future).then((dir) {
+        if (ref.mounted) state = state.copyWith(defaultDownloadDir: dir);
+      }, onError: (_) {}),
+      ref.read(appVersionProvider.future).then((v) {
+        if (ref.mounted) state = state.copyWith(appVersion: v);
+      }, onError: (_) {}),
+    ]);
+  }
+
+  Future<void> _loadVersions() async {
+    final binaries = ref.read(binaryServiceProvider);
+    final (String? ytDlp, String? ffmpeg) = binaries == null
+        ? (null, await ref.read(ffmpegRunnerProvider).version())
+        : await (
+            binaries.version(Binary.ytDlp),
+            binaries.version(Binary.ffmpeg),
+          ).wait;
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      loadingVersions: false,
+      ytDlpVersion: ytDlp,
+      ffmpegVersion: ffmpeg,
+    );
+  }
+
+  Future<void> setTheme(ThemePreference theme) =>
+      _repo.update((s) => s.copyWith(theme: theme));
+
+  Future<void> setLanguage(AppLanguage language) =>
+      _repo.update((s) => s.copyWith(language: language));
+
+  Future<void> setDefaultPreset(QualityPreset preset) {
+    if (!defaultPresetChoices.contains(preset)) {
+      throw ArgumentError.value(preset, 'preset', 'not a default preset');
+    }
+    return _repo.update((s) => s.copyWith(defaultPreset: preset));
+  }
+
+  Future<void> setConcurrentDownloads(int count) => _repo.update(
+    (s) => s.copyWith(
+      concurrentDownloads: count.clamp(
+        AppSettings.minConcurrent,
+        AppSettings.maxConcurrent,
+      ),
+    ),
+  );
+
+  /// Lets the user pick a folder. Does nothing when they cancel.
+  Future<void> pickDownloadDir() async {
+    if (!state.canChangeDownloadDir) return;
+    final dir = await ref.read(directoryPickerProvider)(
+      initialDirectory: state.downloadDir,
+    );
+    if (dir == null || dir.trim().isEmpty) return;
+    await _repo.update((s) => s.copyWith(downloadDir: dir));
+  }
+
+  Future<void> resetDownloadDir() =>
+      _repo.update((s) => s.copyWith(downloadDir: null));
+
+  /// Runs `yt-dlp -U` (desktop). [SettingsState.ytDlpUpdate] reports the
+  /// outcome.
+  Future<void> updateYtDlp() async {
+    final binaries = ref.read(binaryServiceProvider);
+    if (binaries == null || state.ytDlpUpdate == UpdateStatus.running) return;
+    state = state.copyWith(
+      ytDlpUpdate: UpdateStatus.running,
+      ytDlpUpdateError: null,
+    );
+    try {
+      final version = await binaries.updateYtDlp();
+      if (!ref.mounted) return;
+      state = state.copyWith(
+        ytDlpUpdate: UpdateStatus.done,
+        ytDlpVersion: version ?? state.ytDlpVersion,
+      );
+    } on Object catch (e) {
+      if (!ref.mounted) return;
+      state = state.copyWith(
+        ytDlpUpdate: UpdateStatus.failed,
+        ytDlpUpdateError: e,
+      );
+    }
+  }
+
+  /// Re-reads the Android storage access, for example when the user comes
+  /// back from system settings.
+  Future<void> refreshStorageAccess() async {
+    final storage = ref.read(storagePermissionServiceProvider);
+    if (storage == null) return;
+    final access = await storage.status();
+    if (ref.mounted) state = state.copyWith(storageAccess: access);
+  }
+
+  /// Asks for "All files access", or opens the app settings when Android
+  /// will no longer show the request.
+  Future<void> requestStorageAccess() async {
+    final storage = ref.read(storagePermissionServiceProvider);
+    if (storage == null) return;
+    var access = await storage.request();
+    if (access == StorageAccess.permanentlyDenied) {
+      await storage.openSettings();
+      access = await storage.status();
+    }
+    if (ref.mounted) state = state.copyWith(storageAccess: access);
+  }
+}

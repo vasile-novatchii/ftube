@@ -150,6 +150,11 @@ class FakeFfmpegRunner implements FfmpegRunner {
     if (probeError case final e?) throw e;
     return duration;
   }
+
+  String? ffmpegVersion = '7.1';
+
+  @override
+  Future<String?> version() async => ffmpegVersion;
 }
 
 class _FakeTask implements FfmpegTask {

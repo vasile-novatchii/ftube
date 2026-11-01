@@ -1,0 +1,111 @@
+{
+  "@@locale": "en",
+  "appTitle": "Ftube",
+  "navHome": "Home",
+  "navLibrary": "Library",
+  "navSettings": "Settings",
+  "homeEmpty": "Paste a YouTube link to get started.",
+  "libraryEmpty": "Your downloads will appear here.",
+
+  "settingsAppearance": "Appearance",
+  "settingsTheme": "Theme",
+  "themeSystem": "System default",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "settingsLanguage": "Language",
+  "languageEn": "English",
+  "languageRo": "Română",
+
+  "settingsDownloads": "Downloads",
+  "settingsDownloadFolder": "Download folder",
+  "settingsDownloadFolderChange": "Change",
+  "settingsDownloadFolderReset": "Reset to default",
+  "settingsDefaultQuality": "Default quality",
+  "settingsConcurrentDownloads": "Downloads at the same time",
+  "settingsConcurrentDownloadsValue": "{count}",
+  "@settingsConcurrentDownloadsValue": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "presetBest": "Best",
+  "presetP1080": "1080p",
+  "presetP720": "720p",
+  "presetP480": "480p",
+  "presetAudioMp3": "MP3",
+  "presetAudioOgg": "OGG",
+  "presetCustom": "Specific format",
+
+  "settingsStorageAccess": "Storage access",
+  "storageGranted": "All files access is granted.",
+  "storageDenied": "All files access is needed to save downloads.",
+  "storageGrant": "Grant access",
+
+  "settingsTools": "Tools",
+  "settingsYtDlpVersion": "yt-dlp version",
+  "settingsFfmpegVersion": "ffmpeg version",
+  "versionUnknown": "Not installed",
+  "versionLoading": "Checking...",
+  "settingsUpdateYtDlp": "Update yt-dlp",
+  "ytDlpUpdated": "yt-dlp is up to date ({version}).",
+  "@ytDlpUpdated": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "ffmpegBundled": "Bundled",
+
+  "settingsAbout": "About",
+  "settingsAppVersion": "App version",
+  "settingsLicense": "License",
+  "licenseGpl": "GNU General Public License v3.0",
+  "settingsThirdParty": "Third-party licenses",
+
+  "setupTitle": "Setting up Ftube",
+  "setupChecking": "Checking the download tools...",
+  "setupNeeded": "Ftube needs yt-dlp, FFmpeg and Deno to download videos. They will be downloaded once ({size}).",
+  "@setupNeeded": {
+    "placeholders": { "size": { "type": "String" } }
+  },
+  "setupInstall": "Download tools",
+  "setupInstalling": "Downloading {binary}...",
+  "@setupInstalling": {
+    "placeholders": { "binary": { "type": "String" } }
+  },
+  "setupUnpacking": "Unpacking {binary}...",
+  "@setupUnpacking": {
+    "placeholders": { "binary": { "type": "String" } }
+  },
+  "setupProgress": "{received} of {total}",
+  "@setupProgress": {
+    "placeholders": {
+      "received": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "setupFailed": "Setup did not finish.",
+  "retry": "Retry",
+  "cancel": "Cancel",
+
+  "permissionTitle": "Allow access to files",
+  "permissionBody": "Ftube saves downloads to Download/Ftube and lets you manage them there, including files from earlier installs. Android calls this \"All files access\".",
+  "permissionOpenSettings": "Open settings",
+  "permissionLater": "Not now",
+  "permissionBlocked": "Access was refused. Turn on \"All files access\" for Ftube in system settings.",
+
+  "errorInvalidUrl": "This is not a valid link.",
+  "errorUnsupported": "This link or format is not supported.",
+  "errorNetwork": "Could not reach the server. Check your connection.",
+  "errorBinaryMissing": "{binary} is missing. Run setup again.",
+  "@errorBinaryMissing": {
+    "placeholders": { "binary": { "type": "String" } }
+  },
+  "errorChecksum": "The download of {binary} was corrupted.",
+  "@errorChecksum": {
+    "placeholders": { "binary": { "type": "String" } }
+  },
+  "errorProcessFailed": "The tool stopped with error {code}.",
+  "@errorProcessFailed": {
+    "placeholders": { "code": { "type": "int" } }
+  },
+  "errorStoragePermission": "Ftube needs All files access to save downloads.",
+  "errorCancelled": "Cancelled.",
+  "errorUnknown": "Something went wrong."
+}

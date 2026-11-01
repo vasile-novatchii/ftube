@@ -349,7 +349,7 @@ stateDiagram-v2
 | Home | Paste URL, auto-detect a URL on the clipboard (with a prompt), fetch info with thumbnail/title/duration, choose a quality preset or a specific format, download |
 | Queue (on Home; also a badge) | Live progress (percent, phase, size, speed, ETA), cancel, retry, remove, clear finished, open the finished file |
 | Library | List files in `Downloads/Ftube` with type icon, size and date; search; filter (Video / Audio); sort (date / name / size); open; reveal in folder (desktop) or share (Android); convert to MP3/OGG; rename; delete one; multi-select delete; delete all. Every delete asks for confirmation |
-| Settings | Theme (System default / Light / Dark), language (English default / Română), download folder (default `Downloads/Ftube`, changeable, with a reset), default quality preset, concurrent downloads (1-3), yt-dlp version + "Update yt-dlp" (desktop), ffmpeg version, About (app version, GPL-3.0, third-party licenses for yt-dlp, FFmpeg and packages) |
+| Settings | Theme (System default / Light / Dark), language (English default / Română), download folder (default `Downloads/Ftube`; changeable with a reset on desktop, fixed on Android, see D-9), default quality preset, concurrent downloads (1-3), yt-dlp version + "Update yt-dlp" (desktop), ffmpeg version, About (app version, GPL-3.0, third-party licenses for yt-dlp, FFmpeg and packages) |
 
 - Android first run: a permission screen explains the need for "All files access" and opens the system setting. Settings shows the access status, with a button to grant it.
 - Snackbars confirm actions. Delete actions offer Undo for 5 seconds before the file is removed.
@@ -376,6 +376,7 @@ stateDiagram-v2
 - D-7: Theme uses `ThemeMode.system` by default, with a user override for Light or Dark. Material 3 with a seeded `ColorScheme`.
 - D-8: Localization uses `gen-l10n` with ARB files: `app_en.arb` is the template and `app_ro.arb` the translation. English is the default and the fallback.
 - D-9: Downloads go to `Downloads/Ftube` by default. Desktop uses `getDownloadsDirectory()` + `Ftube`. Android uses the public `Download/Ftube` folder, read and written with plain `dart:io` file paths (see D-13).
+  - The folder can be changed only on desktop. Android keeps `Download/Ftube`, because the system folder picker returns content URIs, not file paths.
 - D-13: Android storage access:
   - Request `MANAGE_EXTERNAL_STORAGE` ("All files access") through `permission_handler`. This gives full read, write and delete in `Download/Ftube`, including files left from a previous install or added by other apps. Google Play restricts this permission, but Ftube is not on Play.
   - Since `minSdk` is 31 (D-15), there is no legacy storage branch.
@@ -389,6 +390,7 @@ stateDiagram-v2
 - D-10: "Open with player" becomes "open with the system default app".
 - D-11: The macOS App Sandbox is off and the network client entitlement is on, so the app can download and run its binaries.
 - D-16: Desktop progress comes from yt-dlp `--progress-template` lines on stdout (`FTUBE|...`), postprocessor lines on stderr (`FTUBE_PP|...`) and `--print after_move:FTUBE_FILE|<path>`. Partial files go to a per-job temp folder (`-P temp:`), deleted when the job ends. Local conversion reads `ffmpeg -progress pipe:1`. The `custom` preset passes `formatId` to `-f` as is, so it may be a full selector such as `399+ba`.
+- D-17: `build_runner` is held at 2.16.x, because `riverpod_generator` 4.0.9 does not resolve with build_runner 2.17.1.
 - D-12: Lints use `flutter_lints` plus strict-casts, strict-inference and strict-raw-types.
 
 ## 6. Testing

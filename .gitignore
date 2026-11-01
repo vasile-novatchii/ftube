@@ -59,3 +59,4 @@ third_party/bin/
 # Generated code (build_runner runs locally and in CI)
 *.g.dart
 *.freezed.dart
+lib/l10n/generated/

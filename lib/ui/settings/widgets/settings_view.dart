@@ -1,0 +1,237 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../data/services/android/storage_permission_service.dart';
+import '../../../domain/models/app_settings.dart';
+import '../../../domain/models/quality_preset.dart';
+import '../../core/l10n.dart';
+import '../view_model/settings_view_model.dart';
+
+class SettingsView extends ConsumerStatefulWidget {
+  const SettingsView({super.key});
+
+  @override
+  ConsumerState<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends ConsumerState<SettingsView> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    // The user may have changed storage access in system settings.
+    _lifecycle = AppLifecycleListener(
+      onResume: () =>
+          ref.read(settingsViewModelProvider.notifier).refreshStorageAccess(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final state = ref.watch(settingsViewModelProvider);
+    final vm = ref.read(settingsViewModelProvider.notifier);
+    ref.listen(settingsViewModelProvider, (prev, next) {
+      if (prev?.ytDlpUpdate != UpdateStatus.running) return;
+      final message = switch (next.ytDlpUpdate) {
+        UpdateStatus.done => l10n.ytDlpUpdated(next.ytDlpVersion ?? '?'),
+        UpdateStatus.failed => l10n.errorMessage(next.ytDlpUpdateError ?? ''),
+        _ => null,
+      };
+      if (message == null) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    });
+    final settings = state.settings;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.navSettings)),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          _Header(l10n.settingsAppearance),
+          ListTile(
+            title: Text(l10n.settingsTheme),
+            trailing: DropdownButton<ThemePreference>(
+              key: const Key('settings.theme'),
+              value: settings.theme,
+              onChanged: (t) => t == null ? null : vm.setTheme(t),
+              items: [
+                for (final t in ThemePreference.values)
+                  DropdownMenuItem(value: t, child: Text(l10n.themeLabel(t))),
+              ],
+            ),
+          ),
+          ListTile(
+            title: Text(l10n.settingsLanguage),
+            trailing: DropdownButton<AppLanguage>(
+              key: const Key('settings.language'),
+              value: settings.language,
+              onChanged: (lang) => lang == null ? null : vm.setLanguage(lang),
+              items: [
+                for (final lang in AppLanguage.values)
+                  DropdownMenuItem(
+                    value: lang,
+                    child: Text(l10n.languageLabel(lang)),
+                  ),
+              ],
+            ),
+          ),
+          _Header(l10n.settingsDownloads),
+          ListTile(
+            key: const Key('settings.folder'),
+            title: Text(l10n.settingsDownloadFolder),
+            subtitle: Text(state.downloadDir ?? '...'),
+          ),
+          if (state.canChangeDownloadDir || !state.usesDefaultDir)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  if (state.canChangeDownloadDir)
+                    OutlinedButton(
+                      key: const Key('settings.folder.change'),
+                      onPressed: vm.pickDownloadDir,
+                      child: Text(l10n.settingsDownloadFolderChange),
+                    ),
+                  if (!state.usesDefaultDir)
+                    TextButton(
+                      key: const Key('settings.folder.reset'),
+                      onPressed: vm.resetDownloadDir,
+                      child: Text(l10n.settingsDownloadFolderReset),
+                    ),
+                ],
+              ),
+            ),
+          ListTile(
+            title: Text(l10n.settingsDefaultQuality),
+            trailing: DropdownButton<QualityPreset>(
+              key: const Key('settings.preset'),
+              value: settings.defaultPreset,
+              onChanged: (p) => p == null ? null : vm.setDefaultPreset(p),
+              items: [
+                for (final p in defaultPresetChoices)
+                  DropdownMenuItem(value: p, child: Text(l10n.presetLabel(p))),
+              ],
+            ),
+          ),
+          ListTile(title: Text(l10n.settingsConcurrentDownloads)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SegmentedButton<int>(
+              key: const Key('settings.concurrent'),
+              segments: [
+                for (
+                  var n = AppSettings.minConcurrent;
+                  n <= AppSettings.maxConcurrent;
+                  n++
+                )
+                  ButtonSegment(
+                    value: n,
+                    label: Text(l10n.settingsConcurrentDownloadsValue(n)),
+                  ),
+              ],
+              selected: {settings.concurrentDownloads},
+              onSelectionChanged: (s) => vm.setConcurrentDownloads(s.first),
+            ),
+          ),
+          if (state.storageAccess case final access?) ...[
+            _Header(l10n.settingsStorageAccess),
+            ListTile(
+              key: const Key('settings.storage'),
+              leading: Icon(
+                access == StorageAccess.granted
+                    ? Icons.check_circle_outline
+                    : Icons.error_outline,
+              ),
+              title: Text(
+                access == StorageAccess.granted
+                    ? l10n.storageGranted
+                    : l10n.storageDenied,
+              ),
+              trailing: access == StorageAccess.granted
+                  ? null
+                  : FilledButton(
+                      onPressed: vm.requestStorageAccess,
+                      child: Text(l10n.storageGrant),
+                    ),
+            ),
+          ],
+          _Header(l10n.settingsTools),
+          if (state.isDesktop)
+            ListTile(
+              title: Text(l10n.settingsYtDlpVersion),
+              subtitle: Text(_version(l10n, state, state.ytDlpVersion)),
+              trailing: state.ytDlpUpdate == UpdateStatus.running
+                  ? const SizedBox.square(
+                      dimension: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : OutlinedButton(
+                      key: const Key('settings.updateYtDlp'),
+                      onPressed: vm.updateYtDlp,
+                      child: Text(l10n.settingsUpdateYtDlp),
+                    ),
+            ),
+          ListTile(
+            title: Text(l10n.settingsFfmpegVersion),
+            subtitle: Text(_version(l10n, state, state.ffmpegVersion)),
+          ),
+          _Header(l10n.settingsAbout),
+          ListTile(
+            title: Text(l10n.settingsAppVersion),
+            subtitle: Text(state.appVersion ?? '...'),
+          ),
+          ListTile(
+            title: Text(l10n.settingsLicense),
+            subtitle: Text(l10n.licenseGpl),
+          ),
+          ListTile(
+            key: const Key('settings.licenses'),
+            title: Text(l10n.settingsThirdParty),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: l10n.appTitle,
+              applicationVersion: state.appVersion,
+              applicationLegalese: l10n.licenseGpl,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _version(
+    AppLocalizations l10n,
+    SettingsState state,
+    String? version,
+  ) =>
+      version ??
+      (state.loadingVersions ? l10n.versionLoading : l10n.versionUnknown);
+}
+
+class _Header extends StatelessWidget {
+  const _Header(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.titleSmall
+          ?.copyWith(color: Theme.of(context).colorScheme.primary),
+    ),
+  );
+}

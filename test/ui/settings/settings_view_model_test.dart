@@ -1,0 +1,210 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ftube/config/providers.dart';
+import 'package:ftube/data/repositories/settings_repository.dart';
+import 'package:ftube/data/services/android/storage_permission_service.dart';
+import 'package:ftube/domain/exceptions/ftube_exception.dart';
+import 'package:ftube/domain/models/app_settings.dart';
+import 'package:ftube/domain/models/quality_preset.dart';
+import 'package:ftube/ui/settings/view_model/settings_view_model.dart';
+import 'package:mocktail/mocktail.dart';
+
+import '../helpers.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late TestEnv env;
+  late ProviderContainer container;
+
+  Future<SettingsViewModel> start([
+    Map<String, Object> prefs = const {},
+  ]) async {
+    container = await env.container(prefs);
+    container.listen(settingsViewModelProvider, (_, _) {});
+    await pumpEventQueue();
+    return container.read(settingsViewModelProvider.notifier);
+  }
+
+  SettingsState state() => container.read(settingsViewModelProvider);
+  AppSettings saved() => container.read(settingsRepositoryProvider).current;
+
+  group('desktop', () {
+    setUp(() => env = TestEnv.desktop());
+
+    test('loads the versions, folder and app version', () async {
+      env.defaultDir = Completer();
+      container = await env.container();
+      container.listen(settingsViewModelProvider, (_, _) {});
+      expect(state().loadingVersions, isTrue);
+      expect(state().downloadDir, isNull);
+
+      env.defaultDir!.complete('/home/me/Downloads/Ftube');
+      await pumpEventQueue();
+      expect(state().isDesktop, isTrue);
+      expect(state().loadingVersions, isFalse);
+      expect((state().ytDlpVersion, state().ffmpegVersion), ('1.0', '9.0'));
+      expect(state().downloadDir, '/home/me/Downloads/Ftube');
+      expect(state().usesDefaultDir, isTrue);
+      expect(state().appVersion, '0.1.0');
+      expect(state().storageAccess, isNull);
+      expect(state().canChangeDownloadDir, isTrue);
+    });
+
+    test('a missing default folder or app version leaves them null', () async {
+      env.failLookups = true;
+      await start();
+      expect(state().defaultDownloadDir, isNull);
+      expect(state().appVersion, isNull);
+      expect(state().loadingVersions, isFalse);
+    });
+
+    test('setters save and the state follows the repository', () async {
+      final vm = await start();
+      await vm.setTheme(ThemePreference.dark);
+      await vm.setLanguage(AppLanguage.ro);
+      await vm.setDefaultPreset(QualityPreset.p720);
+      await vm.setConcurrentDownloads(3);
+      const expected = AppSettings(
+        theme: ThemePreference.dark,
+        language: AppLanguage.ro,
+        defaultPreset: QualityPreset.p720,
+        concurrentDownloads: 3,
+      );
+      expect(saved(), expected);
+      expect(state().settings, expected);
+      expect(container.read(currentSettingsProvider), expected);
+    });
+
+    test('concurrent downloads are clamped to 1..3', () async {
+      final vm = await start();
+      await vm.setConcurrentDownloads(0);
+      expect(saved().concurrentDownloads, 1);
+      await vm.setConcurrentDownloads(8);
+      expect(saved().concurrentDownloads, 3);
+    });
+
+    test('custom is not a default preset', () async {
+      final vm = await start();
+      expect(
+        () => vm.setDefaultPreset(QualityPreset.custom),
+        throwsArgumentError,
+      );
+    });
+
+    test('picks a folder, keeps it on cancel, and resets it', () async {
+      final vm = await start();
+      env.pickedDirs.addAll(['/videos', null, '  ']);
+      await vm.pickDownloadDir();
+      expect(state().downloadDir, '/videos');
+      expect(state().usesDefaultDir, isFalse);
+      await vm.pickDownloadDir();
+      await vm.pickDownloadDir();
+      expect(saved().downloadDir, '/videos');
+      expect(env.pickerCalls, [
+        '/home/me/Downloads/Ftube',
+        '/videos',
+        '/videos',
+      ]);
+
+      await vm.resetDownloadDir();
+      expect(saved().downloadDir, isNull);
+      expect(state().downloadDir, '/home/me/Downloads/Ftube');
+    });
+
+    test('updateYtDlp reports the new version', () async {
+      final done = Completer<String?>();
+      when(() => env.binaries.updateYtDlp()).thenAnswer((_) => done.future);
+      final vm = await start();
+      final first = vm.updateYtDlp();
+      expect(state().ytDlpUpdate, UpdateStatus.running);
+      await vm.updateYtDlp(); // ignored while running
+      done.complete('2.0');
+      await first;
+      expect(state().ytDlpUpdate, UpdateStatus.done);
+      expect(state().ytDlpVersion, '2.0');
+      verify(() => env.binaries.updateYtDlp()).called(1);
+    });
+
+    test('updateYtDlp keeps the old version when none is reported', () async {
+      when(() => env.binaries.updateYtDlp()).thenAnswer((_) async => null);
+      final vm = await start();
+      await vm.updateYtDlp();
+      expect(state().ytDlpVersion, '1.0');
+    });
+
+    test('updateYtDlp reports failures', () async {
+      when(() => env.binaries.updateYtDlp())
+          .thenThrow(const ProcessFailed(1, 'boom'));
+      final vm = await start();
+      await vm.updateYtDlp();
+      expect(state().ytDlpUpdate, UpdateStatus.failed);
+      expect(state().ytDlpUpdateError, isA<ProcessFailed>());
+    });
+
+    test('storage commands do nothing on desktop', () async {
+      final vm = await start();
+      await vm.refreshStorageAccess();
+      await vm.requestStorageAccess();
+      expect(state().storageAccess, isNull);
+    });
+
+    test('loads stored settings', () async {
+      await start({SettingsRepository.themeKey: 'light'});
+      expect(state().settings.theme, ThemePreference.light);
+    });
+  });
+
+  group('android', () {
+    setUp(() => env = TestEnv.android());
+
+    test('shows the bundled ffmpeg and the storage access', () async {
+      await start();
+      expect(state().isDesktop, isFalse);
+      expect(state().ytDlpVersion, isNull);
+      expect(state().ffmpegVersion, '7.1');
+      expect(state().storageAccess, StorageAccess.granted);
+      expect(state().canChangeDownloadDir, isFalse);
+    });
+
+    test('pickDownloadDir and updateYtDlp do nothing', () async {
+      final vm = await start();
+      await vm.pickDownloadDir();
+      await vm.updateYtDlp();
+      expect(env.pickerCalls, isEmpty);
+      expect(state().ytDlpUpdate, UpdateStatus.idle);
+    });
+
+    test('refreshStorageAccess re-reads the status', () async {
+      final vm = await start();
+      when(() => env.storage.status())
+          .thenAnswer((_) async => StorageAccess.denied);
+      await vm.refreshStorageAccess();
+      expect(state().storageAccess, StorageAccess.denied);
+    });
+
+    test('requestStorageAccess asks for access', () async {
+      when(() => env.storage.status())
+          .thenAnswer((_) async => StorageAccess.denied);
+      when(() => env.storage.request())
+          .thenAnswer((_) async => StorageAccess.granted);
+      final vm = await start();
+      await vm.requestStorageAccess();
+      expect(state().storageAccess, StorageAccess.granted);
+      verifyNever(() => env.storage.openSettings());
+    });
+
+    test('requestStorageAccess opens settings when blocked', () async {
+      when(() => env.storage.status())
+          .thenAnswer((_) async => StorageAccess.permanentlyDenied);
+      when(() => env.storage.request())
+          .thenAnswer((_) async => StorageAccess.permanentlyDenied);
+      final vm = await start();
+      await vm.requestStorageAccess();
+      verify(() => env.storage.openSettings()).called(1);
+      expect(state().storageAccess, StorageAccess.permanentlyDenied);
+    });
+  });
+}

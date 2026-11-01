@@ -1,25 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
-  runApp(const FtubeApp());
-}
+import 'config/licenses.dart';
+import 'config/providers.dart';
+import 'data/services/binaries/binary_catalog.dart';
+import 'data/services/prefs_service.dart';
+import 'ui/app.dart';
 
-/// Root widget. Theme, localization and navigation arrive in P5.
-class FtubeApp extends StatelessWidget {
-  const FtubeApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Ftube',
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: ThemeData(colorSchemeSeed: Colors.red),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.red,
-        brightness: Brightness.dark,
-      ),
-      home: const Scaffold(body: Center(child: Text('Ftube'))),
-    );
-  }
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  registerThirdPartyLicenses();
+  final platform = AppPlatform.current;
+  final (prefs, dirs) = await (PrefsService.load(), AppDirs.resolve()).wait;
+  final catalog = platform.isDesktop
+      ? BinaryCatalog.parse(
+          await rootBundle.loadString('assets/binaries/catalog.json'),
+        )
+      : null;
+  runApp(
+    ProviderScope(
+      overrides: [
+        prefsServiceProvider.overrideWithValue(prefs),
+        appDirsProvider.overrideWithValue(dirs),
+        if (catalog != null) binaryCatalogProvider.overrideWithValue(catalog),
+      ],
+      child: const FtubeApp(),
+    ),
+  );
 }
