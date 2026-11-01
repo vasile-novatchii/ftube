@@ -1,8 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../domain/exceptions/ftube_exception.dart';
-import '../../domain/models/app_settings.dart';
-import '../../domain/models/quality_preset.dart';
+import '../../domain/models/models.dart';
 import '../../l10n/generated/app_localizations.dart';
 
 export '../../l10n/generated/app_localizations.dart';
@@ -33,6 +32,41 @@ extension AppLocalizationsLabels on AppLocalizations {
     QualityPreset.custom => presetCustom,
   };
 
+  String formatKindLabel(FormatKind kind) => switch (kind) {
+    FormatKind.videoAudio => formatVideoAudio,
+    FormatKind.videoOnly => formatVideoOnly,
+    FormatKind.audioOnly => formatAudioOnly,
+  };
+
+  /// One line per format, for example `1080p60 · mp4 · video only · 12 MB`.
+  String formatLabel(MediaFormat f) => [
+    ?f.resolution,
+    f.container,
+    formatKindLabel(f.kind),
+    if (f.bitrateKbps case final kbps?) formatKbps(kbps),
+    if (f.sizeBytes case final size?) formatBytes(size),
+  ].join(' · ');
+
+  String phaseLabel(JobPhase phase) => switch (phase) {
+    JobPhase.downloadingVideo => phaseDownloadingVideo,
+    JobPhase.downloadingAudio => phaseDownloadingAudio,
+    JobPhase.merging => phaseMerging,
+    JobPhase.converting => phaseConverting,
+    JobPhase.finished => statusCompleted,
+  };
+
+  /// What a queue row says about [job] besides its progress numbers.
+  String jobStatusLabel(DownloadJob job) => switch (job.status) {
+    JobStatus.queued => statusQueued,
+    JobStatus.running => switch (job.progress) {
+      final p? => phaseLabel(p.phase),
+      null => statusStarting,
+    },
+    JobStatus.completed => statusCompleted,
+    JobStatus.failed => errorMessage(job.error ?? const Unexpected()),
+    JobStatus.cancelled => statusCancelled,
+  };
+
   /// A user-facing message for [error]. Technical details stay in logs.
   String errorMessage(Object error) => switch (error) {
     InvalidUrl() => errorInvalidUrl,
@@ -61,4 +95,12 @@ String formatBytes(int bytes) {
   }
   final digits = unit == 0 || value >= 100 ? 0 : 1;
   return '${value.toStringAsFixed(digits)} ${units[unit]}';
+}
+
+/// `m:ss`, or `h:mm:ss` from one hour.
+String formatDuration(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60);
+  final sec = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$sec' : '$m:$sec';
 }

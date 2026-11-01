@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -221,3 +222,10 @@ typedef DirectoryPicker = Future<String?> Function({String? initialDirectory});
 DirectoryPicker directoryPicker(Ref ref) =>
     ({initialDirectory}) =>
         getDirectoryPath(initialDirectory: initialDirectory);
+
+/// Reads plain text from the clipboard, or null when there is none.
+typedef ClipboardReader = Future<String?> Function();
+
+@Riverpod(keepAlive: true)
+ClipboardReader clipboardReader(Ref ref) =>
+    () async => (await Clipboard.getData(Clipboard.kTextPlain))?.text;

@@ -6,7 +6,6 @@
   "navSettings": "Settings",
   "homeEmpty": "Paste a YouTube link to get started.",
   "libraryEmpty": "Your downloads will appear here.",
-
   "settingsAppearance": "Appearance",
   "settingsTheme": "Theme",
   "themeSystem": "System default",
@@ -15,7 +14,6 @@
   "settingsLanguage": "Language",
   "languageEn": "English",
   "languageRo": "Română",
-
   "settingsDownloads": "Downloads",
   "settingsDownloadFolder": "Download folder",
   "settingsDownloadFolderChange": "Change",
@@ -24,9 +22,12 @@
   "settingsConcurrentDownloads": "Downloads at the same time",
   "settingsConcurrentDownloadsValue": "{count}",
   "@settingsConcurrentDownloadsValue": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-
   "presetBest": "Best",
   "presetP1080": "1080p",
   "presetP720": "720p",
@@ -34,12 +35,10 @@
   "presetAudioMp3": "MP3",
   "presetAudioOgg": "OGG",
   "presetCustom": "Specific format",
-
   "settingsStorageAccess": "Storage access",
   "storageGranted": "All files access is granted.",
   "storageDenied": "All files access is needed to save downloads.",
   "storageGrant": "Grant access",
-
   "settingsTools": "Tools",
   "settingsYtDlpVersion": "yt-dlp version",
   "settingsFfmpegVersion": "ffmpeg version",
@@ -48,62 +47,90 @@
   "settingsUpdateYtDlp": "Update yt-dlp",
   "ytDlpUpdated": "yt-dlp is up to date ({version}).",
   "@ytDlpUpdated": {
-    "placeholders": { "version": { "type": "String" } }
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "ffmpegBundled": "Bundled",
-
   "settingsAbout": "About",
   "settingsAppVersion": "App version",
   "settingsLicense": "License",
   "licenseGpl": "GNU General Public License v3.0",
   "settingsThirdParty": "Third-party licenses",
-
   "setupTitle": "Setting up Ftube",
   "setupChecking": "Checking the download tools...",
   "setupNeeded": "Ftube needs yt-dlp, FFmpeg and Deno to download videos. They will be downloaded once ({size}).",
   "@setupNeeded": {
-    "placeholders": { "size": { "type": "String" } }
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
   },
   "setupInstall": "Download tools",
   "setupInstalling": "Downloading {binary}...",
   "@setupInstalling": {
-    "placeholders": { "binary": { "type": "String" } }
+    "placeholders": {
+      "binary": {
+        "type": "String"
+      }
+    }
   },
   "setupUnpacking": "Unpacking {binary}...",
   "@setupUnpacking": {
-    "placeholders": { "binary": { "type": "String" } }
+    "placeholders": {
+      "binary": {
+        "type": "String"
+      }
+    }
   },
   "setupProgress": "{received} of {total}",
   "@setupProgress": {
     "placeholders": {
-      "received": { "type": "String" },
-      "total": { "type": "String" }
+      "received": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "setupFailed": "Setup did not finish.",
   "retry": "Retry",
   "cancel": "Cancel",
-
   "permissionTitle": "Allow access to files",
   "permissionBody": "Ftube saves downloads to Download/Ftube and lets you manage them there, including files from earlier installs. Android calls this \"All files access\".",
   "permissionOpenSettings": "Open settings",
   "permissionLater": "Not now",
   "permissionBlocked": "Access was refused. Turn on \"All files access\" for Ftube in system settings.",
-
   "errorInvalidUrl": "This is not a valid link.",
   "errorUnsupported": "This link or format is not supported.",
   "errorNetwork": "Could not reach the server. Check your connection.",
   "errorBinaryMissing": "{binary} is missing. Run setup again.",
   "@errorBinaryMissing": {
-    "placeholders": { "binary": { "type": "String" } }
+    "placeholders": {
+      "binary": {
+        "type": "String"
+      }
+    }
   },
   "errorChecksum": "The download of {binary} was corrupted.",
   "@errorChecksum": {
-    "placeholders": { "binary": { "type": "String" } }
+    "placeholders": {
+      "binary": {
+        "type": "String"
+      }
+    }
   },
   "errorProcessFailed": "The tool stopped with error {code}.",
   "@errorProcessFailed": {
-    "placeholders": { "code": { "type": "int" } }
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
   },
   "errorStoragePermission": "Ftube needs All files access to save downloads.",
   "errorCancelled": "Cancelled.",
@@ -111,7 +138,63 @@
   "errorInvalidFileName": "That name can't be used for a file.",
   "errorFileExists": "A file named {name} already exists.",
   "@errorFileExists": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
-  "errorFile": "The file could not be changed or opened."
+  "errorFile": "The file could not be changed or opened.",
+  "homeUrlHint": "Paste a YouTube link",
+  "homePaste": "Paste",
+  "homeFetch": "Go",
+  "homeClipboardFound": "Use the link on the clipboard?",
+  "homeClipboardUse": "Use link",
+  "homeClipboardDismiss": "Dismiss",
+  "homeQuality": "Quality",
+  "homeAllFormats": "All formats",
+  "homeDownload": "Download",
+  "homeQueued": "Added to the queue.",
+  "homeNoFolder": "The download folder is not available.",
+  "formatVideoAudio": "video + audio",
+  "formatVideoOnly": "video only",
+  "formatAudioOnly": "audio only",
+  "formatKbps": "{kbps} kbps",
+  "@formatKbps": {
+    "placeholders": {
+      "kbps": {
+        "type": "int"
+      }
+    }
+  },
+  "queueTitle": "Queue ({count})",
+  "@queueTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueEmpty": "No downloads yet.",
+  "queueClearDone": "Clear done",
+  "queueCancel": "Cancel",
+  "queueRetry": "Retry",
+  "queueRemove": "Remove",
+  "queueOpen": "Open",
+  "statusQueued": "Waiting...",
+  "statusStarting": "Starting...",
+  "phaseDownloadingVideo": "Downloading video",
+  "phaseDownloadingAudio": "Downloading audio",
+  "phaseMerging": "Merging...",
+  "phaseConverting": "Converting...",
+  "statusCompleted": "Done",
+  "statusCancelled": "Cancelled",
+  "speedPerSecond": "{size}/s",
+  "@speedPerSecond": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  }
 }

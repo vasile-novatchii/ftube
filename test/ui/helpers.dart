@@ -11,11 +11,14 @@ import 'package:ftube/data/services/android/storage_permission_service.dart';
 import 'package:ftube/data/services/binaries/binary_catalog.dart';
 import 'package:ftube/data/services/binaries/binary_installer.dart';
 import 'package:ftube/data/services/binary_service.dart';
+import 'package:ftube/data/services/file_system_service.dart';
 import 'package:ftube/data/services/prefs_service.dart';
 import 'package:ftube/ui/core/l10n.dart';
 import 'package:ftube/ui/core/theme.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../data/repositories/fake_media_service.dart';
 
 class MockBinaryService extends Mock implements BinaryService {}
 
@@ -24,6 +27,8 @@ class MockBinaryInstaller extends Mock implements BinaryInstaller {}
 class MockStorage extends Mock implements StoragePermissionService {}
 
 class MockFfmpegRunner extends Mock implements FfmpegRunner {}
+
+class MockFileSystemService extends Mock implements FileSystemService {}
 
 /// Prefs backed by an in-memory map.
 Future<PrefsService> testPrefs([Map<String, Object> values = const {}]) {
@@ -43,12 +48,16 @@ CatalogEntry entry(Binary binary, int size) => CatalogEntry(
 /// Desktop or Android fakes, with every service answering by default.
 class TestEnv {
   TestEnv.desktop() : platform = AppPlatform.desktop {
+    when(() => files.canOpen).thenReturn(true);
+    when(() => files.canReveal).thenReturn(true);
     when(() => binaries.version(Binary.ytDlp)).thenAnswer((_) async => '1.0');
     when(() => binaries.version(Binary.ffmpeg)).thenAnswer((_) async => '9.0');
     when(() => installer.missing()).thenAnswer((_) async => []);
   }
 
   TestEnv.android() : platform = AppPlatform.android {
+    when(() => files.canOpen).thenReturn(false);
+    when(() => files.canReveal).thenReturn(false);
     when(() => ffmpeg.version()).thenAnswer((_) async => '7.1');
     when(() => storage.status()).thenAnswer((_) async => StorageAccess.granted);
     when(() => storage.openSettings()).thenAnswer((_) async => true);
@@ -59,6 +68,13 @@ class TestEnv {
   final installer = MockBinaryInstaller();
   final storage = MockStorage();
   final ffmpeg = MockFfmpegRunner();
+  final media = FakeMediaService();
+  final files = MockFileSystemService();
+
+  /// What the clipboard holds; a [StateError] is thrown when it is
+  /// [clipboardError].
+  String? clipboard;
+  bool clipboardError = false;
   final pickedDirs = <String?>[];
   final pickerCalls = <String?>[];
   Completer<String?>? defaultDir;
@@ -89,6 +105,12 @@ class TestEnv {
     appVersionProvider.overrideWith((ref) async {
       if (failLookups) throw StateError('no package info');
       return '0.1.0';
+    }),
+    mediaServiceProvider.overrideWithValue(media),
+    fileSystemServiceProvider.overrideWithValue(files),
+    clipboardReaderProvider.overrideWithValue(() async {
+      if (clipboardError) throw StateError('no clipboard');
+      return clipboard;
     }),
     directoryPickerProvider.overrideWithValue(({initialDirectory}) async {
       pickerCalls.add(initialDirectory);

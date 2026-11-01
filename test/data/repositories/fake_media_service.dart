@@ -54,8 +54,16 @@ class FakeMediaService implements MediaService {
     if (endOnCancel) fail(jobId, const Cancelled());
   }
 
+  /// Answers [fetchInfo]; the default throws [Network].
+  Future<MediaInfo> Function(String url) onFetch = (_) async =>
+      throw const Network();
+  final fetched = <String>[];
+
   @override
-  Future<MediaInfo> fetchInfo(String url) => throw UnimplementedError();
+  Future<MediaInfo> fetchInfo(String url) {
+    fetched.add(url);
+    return onFetch(url);
+  }
 
   bool isRunning(String id) => runs.containsKey(id);
 

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/providers.dart';
 import '../core/l10n.dart';
+import '../home/widgets/home_view.dart';
+import '../queue/view_model/queue_view_model.dart';
 import '../settings/widgets/settings_view.dart';
 
 /// Home, Library and Settings. NavigationBar on Android, NavigationRail on
@@ -26,9 +28,15 @@ class _AppShellState extends ConsumerState<AppShell> {
       (Icons.video_library_outlined, Icons.video_library, l10n.navLibrary),
       (Icons.settings_outlined, Icons.settings, l10n.navSettings),
     ];
-    // Home and Library get their own Views in P7 and P8.
+    final active = ref.watch(activeDownloadCountProvider);
+    Widget badged(IconData icon) => Badge(
+      isLabelVisible: active > 0,
+      label: Text('$active'),
+      child: Icon(icon),
+    );
+    // Library gets its own View in P8.
     final page = switch (_index) {
-      0 => _Placeholder(title: l10n.navHome, text: l10n.homeEmpty),
+      0 => const HomeView(),
       1 => _Placeholder(title: l10n.navLibrary, text: l10n.libraryEmpty),
       _ => const SettingsView(),
     };
@@ -43,8 +51,10 @@ class _AppShellState extends ConsumerState<AppShell> {
           destinations: [
             for (final (icon, selected, label) in destinations)
               NavigationDestination(
-                icon: Icon(icon),
-                selectedIcon: Icon(selected),
+                icon: icon == Icons.home_outlined ? badged(icon) : Icon(icon),
+                selectedIcon: icon == Icons.home_outlined
+                    ? badged(selected)
+                    : Icon(selected),
                 label: label,
               ),
           ],
@@ -61,8 +71,10 @@ class _AppShellState extends ConsumerState<AppShell> {
             destinations: [
               for (final (icon, selected, label) in destinations)
                 NavigationRailDestination(
-                  icon: Icon(icon),
-                  selectedIcon: Icon(selected),
+                  icon: icon == Icons.home_outlined ? badged(icon) : Icon(icon),
+                  selectedIcon: icon == Icons.home_outlined
+                      ? badged(selected)
+                      : Icon(selected),
                   label: Text(label),
                 ),
             ],

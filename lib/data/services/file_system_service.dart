@@ -21,6 +21,9 @@ class FileSystemService {
   /// Suffixes of partial files left by yt-dlp, ffmpeg or a crash.
   static const _partialSuffixes = ['.part', '.ytdl', '.tmp'];
 
+  /// Whether [open] is available. Android support comes in P8.
+  bool get canOpen => os != null;
+
   /// Whether [reveal] is available. Android has no file manager to point at.
   bool get canReveal => os != null;
 
