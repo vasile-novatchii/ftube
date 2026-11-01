@@ -129,7 +129,7 @@ flowchart TD
   - `SettingsRepository` holds the settings.
 - **Services** are stateless wrappers:
   - `MediaService` covers yt-dlp/ffmpeg or the Android libraries.
-  - `FileSystemService` handles listing, deleting, reveal and open.
+  - `FileSystemService` handles listing, renaming, deleting, reveal and open. Open and reveal run `open`, `explorer.exe` or `xdg-open` on desktop; opening and sharing on Android come in P8.
   - `PrefsService` wraps `shared_preferences`.
   - `BinaryService` locates the desktop binaries, reports their versions and updates yt-dlp.
   - `BinaryInstaller` (desktop) checks which binaries are missing or outdated against the catalog and downloads, verifies and unpacks them, with progress and cancel.
@@ -209,7 +209,7 @@ classDiagram
   JobProgress --> JobPhase
 ```
 
-- Failures are typed `FtubeException` subclasses: `InvalidUrl`, `Unsupported`, `Network`, `BinaryMissing`, `ProcessFailed(exitCode, stderrTail)`, `ChecksumMismatch`, `StoragePermission` and `Cancelled`. ViewModels map each to a localized message.
+- Failures are typed `FtubeException` subclasses: `InvalidUrl`, `Unsupported`, `Network`, `BinaryMissing`, `ProcessFailed(exitCode, stderrTail)`, `ChecksumMismatch`, `StoragePermission`, `Cancelled`, `InvalidFileName`, `FileExists`, `FileError` and `Unexpected` (any other error). ViewModels map each to a localized message.
 - Desktop format selection: `best` = `bv*+ba/b`, `p1080` = `bv*[height<=1080]+ba/b[height<=1080]`, and so on for the other heights. `custom` uses the chosen `formatId`.
 - Android format selection: the best video-only stream at or below the preset height, plus the best audio-only stream in a compatible container (mp4+m4a or webm+webm), muxed with `-c copy`.
 

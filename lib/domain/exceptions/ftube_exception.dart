@@ -74,3 +74,27 @@ final class StoragePermission extends FtubeException {
 final class Cancelled extends FtubeException {
   const Cancelled([super.detail]);
 }
+
+/// A new file name is empty, has a path separator or a reserved character.
+final class InvalidFileName extends FtubeException {
+  const InvalidFileName(this.name) : super(name);
+
+  final String name;
+}
+
+/// A file with the target name already exists.
+final class FileExists extends FtubeException {
+  const FileExists(this.name) : super(name);
+
+  final String name;
+}
+
+/// A file could not be listed, renamed, deleted or opened.
+final class FileError extends FtubeException {
+  const FileError([super.detail]);
+}
+
+/// A failure that is not one of the typed cases above.
+final class Unexpected extends FtubeException {
+  const Unexpected([super.detail]);
+}

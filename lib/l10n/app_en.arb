@@ -107,5 +107,11 @@
   },
   "errorStoragePermission": "Ftube needs All files access to save downloads.",
   "errorCancelled": "Cancelled.",
-  "errorUnknown": "Something went wrong."
+  "errorUnknown": "Something went wrong.",
+  "errorInvalidFileName": "That name can't be used for a file.",
+  "errorFileExists": "A file named {name} already exists.",
+  "@errorFileExists": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "errorFile": "The file could not be changed or opened."
 }

@@ -43,6 +43,9 @@ extension AppLocalizationsLabels on AppLocalizations {
     ProcessFailed(:final exitCode) => errorProcessFailed(exitCode),
     StoragePermission() => errorStoragePermission,
     Cancelled() => errorCancelled,
+    InvalidFileName() => errorInvalidFileName,
+    FileExists(:final name) => errorFileExists(name),
+    FileError() => errorFile,
     _ => errorUnknown,
   };
 }

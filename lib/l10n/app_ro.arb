@@ -77,5 +77,8 @@
   "errorProcessFailed": "Instrumentul s-a oprit cu eroarea {code}.",
   "errorStoragePermission": "Ftube are nevoie de acces la toate fișierele pentru a salva descărcările.",
   "errorCancelled": "Anulat.",
-  "errorUnknown": "Ceva nu a mers bine."
+  "errorUnknown": "Ceva nu a mers bine.",
+  "errorInvalidFileName": "Acest nume nu poate fi folosit pentru un fișier.",
+  "errorFileExists": "Există deja un fișier numit {name}.",
+  "errorFile": "Fișierul nu a putut fi modificat sau deschis."
 }

@@ -1,11 +1,14 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../data/repositories/download_repository.dart';
+import '../data/repositories/library_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/services/android/android_media_service.dart';
 import '../data/services/android/ffmpeg_kit_runner.dart';
@@ -15,6 +18,7 @@ import '../data/services/binaries/binary_catalog.dart';
 import '../data/services/binaries/binary_installer.dart';
 import '../data/services/binary_service.dart';
 import '../data/services/desktop/desktop_media_service.dart';
+import '../data/services/file_system_service.dart';
 import '../data/services/media_service.dart';
 import '../data/services/prefs_service.dart';
 import '../data/services/process_runner.dart';
@@ -165,6 +169,46 @@ Future<String?> defaultDownloadDir(Ref ref) async {
     return null;
   }
 }
+
+/// The folder downloads go to: the one chosen in Settings, else the
+/// default. Null when neither is known.
+@Riverpod(keepAlive: true)
+Future<Directory?> downloadDirectory(Ref ref) async {
+  final custom = ref.watch(
+    currentSettingsProvider.select((s) => s.downloadDir),
+  );
+  final path = custom ?? await ref.watch(defaultDownloadDirProvider.future);
+  return path == null ? null : Directory(path);
+}
+
+@Riverpod(keepAlive: true)
+FileSystemService fileSystemService(Ref ref) => FileSystemService(
+  runner: ref.watch(processRunnerProvider),
+  os: ref.watch(appPlatformProvider).isDesktop ? DesktopOs.current : null,
+);
+
+/// The download queue. Its concurrency follows Settings.
+@Riverpod(keepAlive: true)
+DownloadRepository downloadRepository(Ref ref) {
+  final repo = DownloadRepository(
+    ref.watch(mediaServiceProvider),
+    maxConcurrent: ref.read(currentSettingsProvider).concurrentDownloads,
+  );
+  ref
+    ..listen(
+      currentSettingsProvider.select((s) => s.concurrentDownloads),
+      (_, n) => repo.maxConcurrent = n,
+    )
+    ..onDispose(repo.dispose);
+  return repo;
+}
+
+@Riverpod(keepAlive: true)
+LibraryRepository libraryRepository(Ref ref) => LibraryRepository(
+  files: ref.watch(fileSystemServiceProvider),
+  media: ref.watch(mediaServiceProvider),
+  storage: ref.watch(storagePermissionServiceProvider),
+);
 
 @Riverpod(keepAlive: true)
 Future<String> appVersion(Ref ref) async =>

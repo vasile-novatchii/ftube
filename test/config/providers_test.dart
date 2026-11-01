@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,6 +55,39 @@ void main() {
         .read(settingsRepositoryProvider)
         .update((s) => s.copyWith(concurrentDownloads: 1));
     expect(c.read(currentSettingsProvider).concurrentDownloads, 1);
+  });
+
+  test('the queue follows the concurrency setting', () async {
+    final c = await container(AppPlatform.desktop);
+    final queue = c.read(downloadRepositoryProvider);
+    expect(queue.maxConcurrent, 2);
+    await c
+        .read(settingsRepositoryProvider)
+        .update((s) => s.copyWith(concurrentDownloads: 3));
+    expect(queue.maxConcurrent, 3);
+  });
+
+  test('the download folder is the custom one, else the default', () async {
+    final c = await TestEnv.desktop().container();
+    Future<String?> path() async =>
+        (await c.read(downloadDirectoryProvider.future))?.path;
+    expect(await path(), '/home/me/Downloads/Ftube');
+    await c
+        .read(settingsRepositoryProvider)
+        .update((s) => s.copyWith(downloadDir: '/music'));
+    expect(await path(), '/music');
+
+    final env = TestEnv.desktop()..defaultDir = (Completer()..complete(null));
+    final none = await env.container();
+    expect(await none.read(downloadDirectoryProvider.future), isNull);
+  });
+
+  test('library and file system use the platform', () async {
+    final desktop = await container(AppPlatform.desktop);
+    expect(desktop.read(fileSystemServiceProvider).canReveal, isTrue);
+    expect(desktop.read(libraryRepositoryProvider).canReveal, isTrue);
+    final android = await container(AppPlatform.android);
+    expect(android.read(fileSystemServiceProvider).canReveal, isFalse);
   });
 
   test('prefs, folders and catalog must be overridden', () {
