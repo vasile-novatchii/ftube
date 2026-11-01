@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ftube/data/services/android/android_file_launcher.dart';
 import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/data/services/file_system_service.dart';
 import 'package:ftube/data/services/process_runner.dart';
@@ -10,6 +11,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 
 import 'desktop/fakes.dart';
+
+class MockLauncher extends Mock implements AndroidFileLauncher {}
 
 void main() {
   late Directory dir;
@@ -168,12 +171,35 @@ void main() {
       await expectLater(service().reveal(file), throwsA(isA<Unsupported>()));
     });
 
-    test('are not available on Android yet', () {
+    test('reveal is desktop only, share is Android only', () {
       final android = service(null);
       expect(android.canReveal, isFalse);
       expect(service().canReveal, isTrue);
-      expect(() => android.open(file), throwsA(isA<Unsupported>()));
+      expect(service().canShare, isFalse);
       expect(() => android.reveal(file), throwsA(isA<Unsupported>()));
+      expect(() => service().share(file), throwsA(isA<Unsupported>()));
+    });
+
+    test('Android without a launcher cannot open or share', () {
+      final android = service(null);
+      expect(android.canOpen, isFalse);
+      expect(android.canShare, isFalse);
+      expect(() => android.open(file), throwsA(isA<Unsupported>()));
+      expect(() => android.share(file), throwsA(isA<Unsupported>()));
+    });
+
+    test('Android opens and shares through the launcher', () async {
+      final launcher = MockLauncher();
+      when(() => launcher.open(any())).thenAnswer((_) async {});
+      when(() => launcher.share(any())).thenAnswer((_) async {});
+      final android = FileSystemService(runner: runner, android: launcher);
+      expect(android.canOpen, isTrue);
+      expect(android.canShare, isTrue);
+      await android.open(file);
+      await android.share(file);
+      verify(() => launcher.open(file)).called(1);
+      verify(() => launcher.share(file)).called(1);
+      verifyNever(() => runner.run(any(), any()));
     });
   });
 }

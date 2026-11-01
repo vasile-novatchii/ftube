@@ -196,5 +196,72 @@
         "type": "String"
       }
     }
-  }
+  },
+  "librarySearchHint": "Search files",
+  "libraryRefresh": "Refresh",
+  "libraryFilterAll": "All",
+  "libraryFilterVideo": "Video",
+  "libraryFilterAudio": "Audio",
+  "librarySort": "Sort",
+  "librarySortDate": "Newest first",
+  "librarySortName": "Name",
+  "librarySortSize": "Largest first",
+  "libraryNoMatches": "No files match.",
+  "libraryMore": "More actions",
+  "libraryOpen": "Open",
+  "libraryReveal": "Show in folder",
+  "libraryShare": "Share",
+  "libraryConvertMp3": "Convert to MP3",
+  "libraryConvertOgg": "Convert to OGG",
+  "libraryStopConverting": "Stop converting",
+  "libraryConverted": "Saved as {name}.",
+  "@libraryConverted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryRename": "Rename",
+  "libraryRenameTitle": "Rename file",
+  "libraryRenameLabel": "Name",
+  "save": "Save",
+  "libraryDelete": "Delete",
+  "libraryDeleteAll": "Delete all",
+  "librarySelectAll": "Select all",
+  "libraryClearSelection": "Clear selection",
+  "librarySelected": "{count} selected",
+  "@librarySelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryDeleteNamed": "Delete {name}?",
+  "@libraryDeleteNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDeleteCount": "{count, plural, =1{Delete 1 file?} other{Delete {count} files?}}",
+  "@libraryDeleteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryDeleteBody": "Files are removed from the disk, not moved to the trash.",
+  "libraryDeleted": "{count, plural, =1{File deleted.} other{{count} files deleted.}}",
+  "@libraryDeleted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "undo": "Undo"
 }

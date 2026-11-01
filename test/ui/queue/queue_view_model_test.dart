@@ -98,8 +98,10 @@ void main() {
     });
   });
 
-  test('android cannot open files yet', () async {
-    await start(TestEnv.android());
+  test('files are not opened where open is unavailable', () async {
+    final e = TestEnv.android();
+    when(() => e.files.canOpen).thenReturn(false);
+    await start(e);
     expect(state().canOpen, isFalse);
     final a = add('a');
     env.media.finish(a.id);

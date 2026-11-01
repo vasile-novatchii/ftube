@@ -13,6 +13,9 @@ class FakeMediaService implements MediaService {
   final cancelled = <String>[];
   final converts = <(String src, AudioTarget target, String dst, String id)>[];
 
+  /// Runs a conversion instead of finishing it at once.
+  Stream<JobProgress> Function(String jobId, File dst)? onConvert;
+
   /// When false, [cancel] only records the call and the test ends the run.
   bool endOnCancel = true;
 
@@ -38,6 +41,7 @@ class FakeMediaService implements MediaService {
     required String jobId,
   }) {
     converts.add((src.path, target, dst.path, jobId));
+    if (onConvert case final run?) return run(jobId, dst);
     return Stream.value(
       JobProgress(
         jobId: jobId,

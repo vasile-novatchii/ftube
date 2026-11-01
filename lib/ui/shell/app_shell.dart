@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/providers.dart';
 import '../core/l10n.dart';
 import '../home/widgets/home_view.dart';
+import '../library/widgets/library_view.dart';
 import '../queue/view_model/queue_view_model.dart';
 import '../settings/widgets/settings_view.dart';
 
@@ -34,10 +35,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       label: Text('$active'),
       child: Icon(icon),
     );
-    // Library gets its own View in P8.
     final page = switch (_index) {
       0 => const HomeView(),
-      1 => _Placeholder(title: l10n.navLibrary, text: l10n.libraryEmpty),
+      1 => const LibraryView(),
       _ => const SettingsView(),
     };
     void select(int i) => setState(() => _index = i);
@@ -85,22 +85,4 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
     );
   }
-}
-
-class _Placeholder extends StatelessWidget {
-  const _Placeholder({required this.title, required this.text});
-
-  final String title;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(text, textAlign: TextAlign.center),
-      ),
-    ),
-  );
 }

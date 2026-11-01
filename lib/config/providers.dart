@@ -11,6 +11,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../data/repositories/download_repository.dart';
 import '../data/repositories/library_repository.dart';
 import '../data/repositories/settings_repository.dart';
+import '../data/services/android/android_file_launcher.dart';
 import '../data/services/android/android_media_service.dart';
 import '../data/services/android/ffmpeg_kit_runner.dart';
 import '../data/services/android/storage_permission_service.dart';
@@ -183,10 +184,14 @@ Future<Directory?> downloadDirectory(Ref ref) async {
 }
 
 @Riverpod(keepAlive: true)
-FileSystemService fileSystemService(Ref ref) => FileSystemService(
-  runner: ref.watch(processRunnerProvider),
-  os: ref.watch(appPlatformProvider).isDesktop ? DesktopOs.current : null,
-);
+FileSystemService fileSystemService(Ref ref) {
+  final desktop = ref.watch(appPlatformProvider).isDesktop;
+  return FileSystemService(
+    runner: ref.watch(processRunnerProvider),
+    os: desktop ? DesktopOs.current : null,
+    android: desktop ? null : const AndroidFileLauncher(),
+  );
+}
 
 /// The download queue. Its concurrency follows Settings.
 @Riverpod(keepAlive: true)

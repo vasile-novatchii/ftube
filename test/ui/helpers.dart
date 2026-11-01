@@ -13,6 +13,7 @@ import 'package:ftube/data/services/binaries/binary_installer.dart';
 import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/data/services/file_system_service.dart';
 import 'package:ftube/data/services/prefs_service.dart';
+import 'package:ftube/domain/models/models.dart';
 import 'package:ftube/ui/core/l10n.dart';
 import 'package:ftube/ui/core/theme.dart';
 import 'package:mocktail/mocktail.dart';
@@ -48,19 +49,32 @@ CatalogEntry entry(Binary binary, int size) => CatalogEntry(
 /// Desktop or Android fakes, with every service answering by default.
 class TestEnv {
   TestEnv.desktop() : platform = AppPlatform.desktop {
+    _registerFallbacks();
     when(() => files.canOpen).thenReturn(true);
     when(() => files.canReveal).thenReturn(true);
+    when(() => files.canShare).thenReturn(false);
+    when(() => files.list(any())).thenAnswer((_) async => []);
     when(() => binaries.version(Binary.ytDlp)).thenAnswer((_) async => '1.0');
     when(() => binaries.version(Binary.ffmpeg)).thenAnswer((_) async => '9.0');
     when(() => installer.missing()).thenAnswer((_) async => []);
   }
 
   TestEnv.android() : platform = AppPlatform.android {
-    when(() => files.canOpen).thenReturn(false);
+    _registerFallbacks();
+    when(() => files.canOpen).thenReturn(true);
     when(() => files.canReveal).thenReturn(false);
+    when(() => files.canShare).thenReturn(true);
+    when(() => files.list(any())).thenAnswer((_) async => []);
+    when(storage.ensureGranted).thenAnswer((_) async {});
+    when(() => storage.scanFile(any())).thenAnswer((_) async {});
     when(() => ffmpeg.version()).thenAnswer((_) async => '7.1');
     when(() => storage.status()).thenAnswer((_) async => StorageAccess.granted);
     when(() => storage.openSettings()).thenAnswer((_) async => true);
+  }
+
+  static void _registerFallbacks() {
+    registerFallbackValue(Directory('/'));
+    registerFallbackValue(<LibraryItem>[]);
   }
 
   final AppPlatform platform;

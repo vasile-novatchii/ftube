@@ -129,7 +129,7 @@ flowchart TD
   - `SettingsRepository` holds the settings.
 - **Services** are stateless wrappers:
   - `MediaService` covers yt-dlp/ffmpeg or the Android libraries.
-  - `FileSystemService` handles listing, renaming, deleting, reveal and open. Open and reveal run `open`, `explorer.exe` or `xdg-open` on desktop; opening and sharing on Android come in P8.
+  - `FileSystemService` handles listing, renaming, deleting, reveal and open. Open and reveal run `open`, `explorer.exe` or `xdg-open` on desktop. On Android, `AndroidFileLauncher` opens and shares files through a `FileProvider` content URI (`MainActivity.kt`).
   - `PrefsService` wraps `shared_preferences`.
   - `BinaryService` locates the desktop binaries, reports their versions and updates yt-dlp.
   - `BinaryInstaller` (desktop) checks which binaries are missing or outdated against the catalog and downloads, verifies and unpacks them, with progress and cancel.

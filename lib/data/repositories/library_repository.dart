@@ -31,7 +31,11 @@ class LibraryRepository {
   /// Longest name a rename accepts, without the extension.
   static const maxNameLength = 200;
 
+  bool get canOpen => _files.canOpen;
+
   bool get canReveal => _files.canReveal;
+
+  bool get canShare => _files.canShare;
 
   /// Files in [dir], newest first.
   Future<List<LibraryItem>> list(Directory dir) async {
@@ -108,6 +112,8 @@ class LibraryRepository {
   Future<void> open(LibraryItem item) => _files.open(item.path);
 
   Future<void> reveal(LibraryItem item) => _files.reveal(item.path);
+
+  Future<void> share(LibraryItem item) => _files.share(item.path);
 
   /// `<dir>/<name><ext>`, or `<name>_2<ext>`, `<name>_3<ext>`... when taken.
   static File freePath(Directory dir, String name, String ext) {

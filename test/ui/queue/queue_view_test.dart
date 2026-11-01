@@ -208,8 +208,23 @@ void main() {
     });
   });
 
-  testWidgets('android has no open button yet', (tester) async {
+  testWidgets('android opens a finished file', (tester) async {
     env = TestEnv.android();
+    when(() => env.files.open(any())).thenAnswer((_) async {});
+    await pump(tester);
+    final a = add('a');
+    await tester.pump();
+    env.media.finish(a.id, '/out/a.mp4');
+    await tester.pump();
+    expect(find.text('Done'), findsOneWidget);
+    await tester.tap(key('queue.open.${a.id}'));
+    await tester.pump();
+    verify(() => env.files.open('/out/a.mp4')).called(1);
+  });
+
+  testWidgets('no open button where open is unavailable', (tester) async {
+    env = TestEnv.android();
+    when(() => env.files.canOpen).thenReturn(false);
     await pump(tester);
     final a = add('a');
     await tester.pump();

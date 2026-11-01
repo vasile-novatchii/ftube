@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Files MainActivity may open or share: anything on shared storage,
+     which covers Download/Ftube (docs/spec.md D-13). -->
+<paths>
+    <external-path name="external" path="." />
+</paths>

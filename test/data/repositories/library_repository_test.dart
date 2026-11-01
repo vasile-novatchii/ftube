@@ -182,9 +182,16 @@ void main() {
     final a = await item('a.mp4');
     final r = repo();
     expect(r.canReveal, isTrue);
+    expect(r.canOpen, isTrue);
+    expect(r.canShare, isFalse);
     await r.open(a);
     await r.reveal(a);
     verify(() => runner.run('open', [a.path])).called(1);
     verify(() => runner.run('open', ['-R', a.path])).called(1);
+  });
+
+  test('share goes to the file system service', () async {
+    final a = await item('a.mp4');
+    await expectLater(repo().share(a), throwsA(isA<Unsupported>()));
   });
 }

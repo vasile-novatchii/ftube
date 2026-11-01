@@ -7,6 +7,7 @@ import 'package:ftube/data/services/android/storage_permission_service.dart';
 import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/domain/models/app_settings.dart';
 import 'package:ftube/ui/app.dart';
+import 'package:ftube/ui/library/widgets/library_view.dart';
 import 'package:ftube/ui/permission/widgets/permission_view.dart';
 import 'package:ftube/ui/settings/widgets/settings_view.dart';
 import 'package:ftube/ui/setup/widgets/setup_view.dart';
@@ -49,8 +50,9 @@ void main() {
 
     testWidgets('navigates between the three screens', (tester) async {
       await pump(tester);
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('Library').first);
       await tester.pumpAndSettle();
+      expect(find.byType(LibraryView), findsOneWidget);
       expect(find.text('Your downloads will appear here.'), findsOneWidget);
       await tester.tap(find.text('Settings').first);
       await tester.pumpAndSettle();
