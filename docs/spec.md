@@ -382,7 +382,7 @@ stateDiagram-v2
   - Resolve the public Downloads path through a small `MethodChannel` (`Environment.getExternalStoragePublicDirectory(DIRECTORY_DOWNLOADS)`). New files are announced to the gallery and media apps with `MediaScannerConnection.scanFile`.
   - A first-run permission screen explains why access is needed. If access is denied, downloads are blocked with a "Grant access" button.
 - D-15: Minimum OS versions:
-  - Android 12 (`minSdk 31`).
+  - Android 12 (`minSdk 31`). `compileSdk` is 37 because `permission_handler_android` 14 requires it; `targetSdk` stays at Flutter's default.
   - macOS 12.0, Flutter 3.47.9's template default (`MACOSX_DEPLOYMENT_TARGET`).
   - Windows and Linux use Flutter's defaults.
 - D-14: macOS ships one universal `.app` for arm64 and x86_64. The binaries are downloaded for the host CPU only (`yt-dlp_macos` is already universal and serves both). `tool/fetch_binaries.dart` still builds universal binaries with `lipo` for development.
@@ -449,12 +449,12 @@ flowchart LR
 - R-1: The binaries are large, so first launch downloads a few hundred MB and needs internet. Accepted in exchange for a small installer. Without internet, the setup screen offers Retry and nothing else works on desktop.
 - R-2: Resolved in P3/P3b: `yt-dlp_macos` is already universal, and the other binaries are downloaded per CPU, so nothing is doubled.
 - R-3: "All files access" is a broad permission and users must grant it manually in system settings. If they refuse, Android downloads cannot run (D-13). Some OEM ROMs may behave differently, so P4 tests on an emulator at API 31 and on the latest API.
-- R-4: `youtube_explode_dart` breaks when YouTube changes, and some clients need a JS challenge solver. Android downloads may fail until the package is updated.
-- R-5: `ffmpeg_kit_flutter_new_audio` also declares desktop platforms, so desktop builds may include its libraries on top of the downloaded CLI. Measure in P4 and exclude if possible.
+- R-4: `youtube_explode_dart` breaks when YouTube changes, and some clients need a JS challenge solver. Android downloads may fail until the package is updated. Its default Android client may refuse a second download from the same manifest, so `AndroidMediaService` fetches a fresh manifest before the audio stream.
+- R-5: Confirmed in P4: `ffmpeg_kit_flutter_new_audio` 2.5.7 declares macOS, Windows and Linux. Its Windows and Linux CMake files download the FFmpegKit audio bundle at build time, and on macOS its podspec vendors `ffmpegkit.framework`. pubspec cannot limit a plugin to one platform, so desktop builds carry these libraries unused. The size gets measured in P9 on the CI build matrix (this machine has no Xcode). If it is too large, move the Android media code into a local Android-only plugin.
 - R-6: Android has no background downloads in v1. Downloads stop if the OS kills the app, and a foreground-service notification is planned for v2.
 - R-7: Unsigned macOS and Windows builds trigger Gatekeeper and SmartScreen warnings. Document the `xattr` fix in the README. Binaries the app downloads itself are expected not to get the quarantine flag; verify on macOS 12 and the latest macOS in P9.
 - R-8: The mirrored ffmpeg and the PyInstaller yt-dlp binaries contain GPL code. Ftube is GPL-3.0, so this is compatible, but the notices and source links must ship with each release.
-- R-9: The ffmpeg builds target macOS 12.0 and yt-dlp 11.0 (resolved in P3). The ffmpeg_kit plugin is checked in P4.
+- R-9: The ffmpeg builds target macOS 12.0 and yt-dlp 11.0 (resolved in P3). ffmpeg_kit needs Android `minSdk 24` and macOS 10.15, both below Ftube's minimums (resolved in P4).
 - R-11: Mirroring makes the `ftube` repo responsible for hosting GPL binaries. Each `binaries-rN` release notes link to the upstream sources (R-8).
 - R-10: On macOS and Linux, cancelling a download kills yt-dlp, but an ffmpeg child it started (merge or extract) may keep running until it finishes. Its output lands in the job temp folder, which is deleted.
 

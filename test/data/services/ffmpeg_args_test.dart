@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ftube/data/services/desktop/ffmpeg_args.dart';
+import 'package:ftube/data/services/ffmpeg_args.dart';
 import 'package:ftube/data/services/progress_weights.dart';
 import 'package:ftube/domain/models/models.dart';
 
@@ -28,6 +28,37 @@ void main() {
         FfmpegArgs.convert('a', AudioTarget.ogg, 'b'),
         containsAllInOrder(['-acodec', 'libvorbis']),
       );
+    });
+
+    test('convert can leave out the stdout progress pipe', () {
+      final args = FfmpegArgs.convert(
+        'a',
+        AudioTarget.mp3,
+        'b',
+        pipeProgress: false,
+      );
+      expect(args, isNot(contains('-progress')));
+      expect(args, isNot(contains('pipe:1')));
+      expect(args.last, 'b');
+    });
+
+    test('mux copies the first video and the second audio stream', () {
+      expect(FfmpegArgs.mux('v.mp4', 'a.m4a', 'out.mp4'), [
+        '-hide_banner',
+        '-nostdin',
+        '-y',
+        '-i',
+        'v.mp4',
+        '-i',
+        'a.m4a',
+        '-map',
+        '0:v:0',
+        '-map',
+        '1:a:0',
+        '-c',
+        'copy',
+        'out.mp4',
+      ]);
     });
 
     test('probeDuration ends with the source', () {

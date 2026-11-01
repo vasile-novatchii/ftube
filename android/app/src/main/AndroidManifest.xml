@@ -1,6 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- "All files access" for the public Download/Ftube folder, see docs/spec.md D-13.
+         Ftube is not on Google Play, which restricts this permission. -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage"/>
     <application
-        android:label="ftube"
+        android:label="Ftube"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

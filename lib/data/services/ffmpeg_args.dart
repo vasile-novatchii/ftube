@@ -1,4 +1,4 @@
-import '../../../domain/models/audio_target.dart';
+import '../../domain/models/audio_target.dart';
 
 /// ffmpeg and ffprobe command lines and output parsing for conversions.
 abstract final class FfmpegArgs {
@@ -14,8 +14,14 @@ abstract final class FfmpegArgs {
   ];
 
   /// Audio conversion with the same codec settings as `ftube.sh`
-  /// (stereo, 320 kb/s), writing machine-readable progress to stdout.
-  static List<String> convert(String src, AudioTarget target, String dst) => [
+  /// (stereo, 320 kb/s). With [pipeProgress], machine-readable progress goes
+  /// to stdout; ffmpeg_kit reports progress through callbacks instead.
+  static List<String> convert(
+    String src,
+    AudioTarget target,
+    String dst, {
+    bool pipeProgress = true,
+  }) => [
     '-hide_banner',
     '-nostdin',
     '-y',
@@ -31,9 +37,26 @@ abstract final class FfmpegArgs {
     '2',
     '-b:a',
     '320k',
-    '-progress',
-    'pipe:1',
+    if (pipeProgress) ...['-progress', 'pipe:1'],
     '-nostats',
+    dst,
+  ];
+
+  /// Muxes a video-only and an audio-only file without re-encoding.
+  static List<String> mux(String video, String audio, String dst) => [
+    '-hide_banner',
+    '-nostdin',
+    '-y',
+    '-i',
+    video,
+    '-i',
+    audio,
+    '-map',
+    '0:v:0',
+    '-map',
+    '1:a:0',
+    '-c',
+    'copy',
     dst,
   ];
 

@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "io.github.infvyr.ftube"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android 14 needs 37; targetSdk stays at Flutter's default.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
