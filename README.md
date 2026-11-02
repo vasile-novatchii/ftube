@@ -14,7 +14,7 @@ Download the file for your system from the [latest release](https://github.com/v
 | macOS (Apple silicon and Intel) | `Ftube-<version>-macos.zip` | macOS 12 or later |
 | Windows | `Ftube-<version>-windows.zip` | Windows 10 or later, x64 |
 | Linux | `Ftube-<version>-linux.tar.gz` | x64 with GTK 3 |
-| Android | `Ftube-<version>-android.apk` | Android 12 or later |
+| Android | `Ftube-<version>-android-arm64-v8a.apk` (most phones), `-armeabi-v7a.apk` (older 32-bit), `-x86_64.apk` (emulators) | Android 12 or later |
 
 On first launch the desktop app downloads yt-dlp, ffmpeg, ffprobe and Deno (a few hundred MB) into its app support folder, so it needs internet once. Downloads go to `Downloads/Ftube`.
 

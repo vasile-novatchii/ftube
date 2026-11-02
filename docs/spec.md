@@ -443,7 +443,7 @@ flowchart LR
 - DoD-6: Files land in `Downloads/Ftube` by default, and single, multi-select and delete-all all work with confirmation. On Android this also covers files from a previous install or from other apps.
 - DoD-10: macOS ships as one universal `.app` (`lipo -archs` reports `x86_64 arm64` for the app binary), and first launch installs working binaries on both Apple silicon and Intel.
 - DoD-7: The queue shows live progress, cancel, retry and remove.
-- DoD-8: A tag `v*` publishes macOS (.zip), Windows (.zip), Linux (.tar.gz) and Android (.apk) artifacts to a GitHub Release.
+- DoD-8: A tag `v*` publishes macOS (.zip), Windows (.zip), Linux (.tar.gz) and Android (one .apk per ABI: arm64-v8a, armeabi-v7a, x86_64) artifacts to a GitHub Release.
 - DoD-9: The repo has a GPL-3.0 `LICENSE` and a third-party notices file. The README has install steps per OS, including the macOS quarantine note.
 
 ## 8. Constraints and risks

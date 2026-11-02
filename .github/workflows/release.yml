@@ -112,9 +112,13 @@ jobs:
           else
             echo "::warning::No release keystore secret; the APK is signed with a throwaway debug key"
           fi
-          flutter build apk --release
+          flutter build apk --release --split-per-abi \
+            --obfuscate --split-debug-info=build/symbols
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ steps.v.outputs.name }}.apk"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "build/app/outputs/flutter-apk/app-$abi-release.apk" \
+              "dist/${{ steps.v.outputs.name }}-$abi.apk"
+          done
 
       - name: Add license and notices
         if: matrix.target != 'android'
@@ -143,9 +147,18 @@ jobs:
 
       - uses: actions/upload-artifact@v5
         with:
-          name: ${{ matrix.target }}
+          name: release-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
+
+      # Needed to read obfuscated Android stack traces: flutter symbolize.
+      - uses: actions/upload-artifact@v5
+        if: matrix.target == 'android'
+        with:
+          name: android-symbols-${{ steps.v.outputs.name }}
+          path: build/symbols
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Install the desktop binaries
         if: matrix.target != 'android'
@@ -168,6 +181,7 @@ jobs:
       - uses: actions/download-artifact@v5
         with:
           path: dist
+          pattern: release-*
           merge-multiple: true
 
       - name: Create the release

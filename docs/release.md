@@ -43,5 +43,5 @@ Android, on an emulator or device at API 31 and at the latest API:
 ## After the tag
 
 - [ ] The `Release` workflow is green. Read the `Smoke download` step on each OS; it may only warn when YouTube blocks the runner.
-- [ ] The release has the macOS `.zip`, Windows `.zip`, Linux `.tar.gz` and Android `.apk`, and the job summaries show their sizes. Note the desktop size cost of the unused FFmpegKit libraries (R-5).
+- [ ] The release has the macOS `.zip`, Windows `.zip`, Linux `.tar.gz` and three Android APKs (`-arm64-v8a`, `-armeabi-v7a`, `-x86_64`, about 19-28MB each), and the job summaries show their sizes. The run also has an `android-symbols-*` artifact; download it before it expires (90 days) and keep it to read obfuscated crash traces with `flutter symbolize`. Note the desktop size cost of the unused FFmpegKit libraries (R-5).
 - [ ] Each archive contains `LICENSE` and `THIRD_PARTY_NOTICES.md`.

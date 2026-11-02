@@ -53,6 +53,13 @@ android {
         }
     }
 
+    // Compress native libs in the APK: smaller download, extracted on install.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName(
