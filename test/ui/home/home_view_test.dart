@@ -78,6 +78,26 @@ void main() {
   HomeState home() => container.read(homeViewModelProvider);
 
   group('desktop', () {
+    testWidgets('the clear button shows only with text and empties the field', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(text('home.clear'), findsNothing);
+
+      await tester.enterText(text('home.url'), url);
+      await tester.pump();
+      expect(text('home.clear'), findsOneWidget);
+
+      await tester.tap(text('home.clear'));
+      await tester.pump();
+      expect(home().url, isEmpty);
+      expect(
+        tester.widget<TextField>(text('home.url')).controller!.text,
+        isEmpty,
+      );
+      expect(text('home.clear'), findsNothing);
+    });
+
     setUp(() {
       env = TestEnv.desktop();
       env.media.onFetch = (_) async => info;

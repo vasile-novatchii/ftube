@@ -74,6 +74,7 @@
   "errorFile": "Fișierul nu a putut fi modificat sau deschis.",
   "homeUrlHint": "Lipește un link YouTube",
   "homePaste": "Lipește",
+  "homeClear": "Șterge",
   "homeFetch": "Caută",
   "homeClipboardFound": "Folosești linkul din clipboard?",
   "homeClipboardUse": "Folosește linkul",

@@ -147,6 +147,7 @@
   "errorFile": "The file could not be changed or opened.",
   "homeUrlHint": "Paste a YouTube link",
   "homePaste": "Paste",
+  "homeClear": "Clear",
   "homeFetch": "Go",
   "homeClipboardFound": "Use the link on the clipboard?",
   "homeClipboardUse": "Use link",

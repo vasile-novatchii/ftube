@@ -121,6 +121,17 @@ class _HomeViewState extends ConsumerState<HomeView> {
                     hintText: l10n.homeUrlHint,
                     border: const OutlineInputBorder(),
                     isDense: true,
+                    suffixIcon: state.url.isEmpty
+                        ? null
+                        : IconButton(
+                            key: const Key('home.clear'),
+                            tooltip: l10n.homeClear,
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _url.clear();
+                              _vm.setUrl('');
+                            },
+                          ),
                   ),
                   onChanged: _vm.setUrl,
                   onSubmitted: (_) => _vm.fetch(),
