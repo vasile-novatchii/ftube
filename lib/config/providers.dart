@@ -24,6 +24,7 @@ import '../data/services/file_system_service.dart';
 import '../data/services/media_service.dart';
 import '../data/services/prefs_service.dart';
 import '../data/services/process_runner.dart';
+import '../data/services/removed_items_store.dart';
 import '../domain/models/app_settings.dart';
 
 part 'providers.g.dart';
@@ -213,8 +214,13 @@ DownloadRepository downloadRepository(Ref ref) {
 LibraryRepository libraryRepository(Ref ref) => LibraryRepository(
   files: ref.watch(fileSystemServiceProvider),
   media: ref.watch(mediaServiceProvider),
+  removed: ref.watch(removedItemsStoreProvider),
   storage: ref.watch(storagePermissionServiceProvider),
 );
+
+@Riverpod(keepAlive: true)
+RemovedItemsStore removedItemsStore(Ref ref) =>
+    RemovedItemsStore(ref.watch(prefsServiceProvider));
 
 @Riverpod(keepAlive: true)
 Future<String> appVersion(Ref ref) async =>

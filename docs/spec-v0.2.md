@@ -208,7 +208,7 @@ flowchart LR
 - R-13: GTK doesn't offer maximize on a window that can't be resized (not yet checked on a Linux desktop), so Linux keeps edge resize with an 800×600 minimum. Check on GNOME and KDE before release.
 - R-14: Removing items from the library is permanent. The confirm dialog says so.
 - R-15: Machine-assisted translations for RU, ES, DE and AR need a native speaker review before release.
-- R-16: `RemovedItemsStore` grows with every clear. Entries whose file no longer exists are pruned when the library is listed.
+- R-16: `RemovedItemsStore` grows with every clear. When a folder is listed, its entries that match no file there (deleted or replaced) are pruned; entries of other folders wait until that folder is listed again.
 
 ## 8. Non-goals (v0.2)
 

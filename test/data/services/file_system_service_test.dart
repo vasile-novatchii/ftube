@@ -263,4 +263,22 @@ void main() {
       verifyNever(() => runner.run(any(), any()));
     });
   });
+
+  group('emptyDir', () {
+    test('deletes the contents and keeps the folder', () async {
+      final dir = Directory.systemTemp.createTempSync('ftube_empty_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      File(p.join(dir.path, 'a.part')).writeAsStringSync('x');
+      Directory(p.join(dir.path, 'job-1')).createSync();
+      File(p.join(dir.path, 'job-1', 'b.tmp')).writeAsStringSync('y');
+      await FileSystemService(runner: MockProcessRunner()).emptyDir(dir);
+      expect(dir.existsSync(), isTrue);
+      expect(dir.listSync(), isEmpty);
+    });
+
+    test('a missing folder is a no-op', () async {
+      await FileSystemService(runner: MockProcessRunner())
+          .emptyDir(Directory('/no/such/ftube/dir'));
+    });
+  });
 }

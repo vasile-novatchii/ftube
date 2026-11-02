@@ -7,6 +7,7 @@ import '../../domain/models/models.dart';
 import '../services/android/storage_permission_service.dart';
 import '../services/file_system_service.dart';
 import '../services/media_service.dart';
+import '../services/removed_items_store.dart';
 
 /// The files in the download folder: list, rename, delete, open and convert.
 ///
@@ -16,11 +17,13 @@ class LibraryRepository {
   LibraryRepository({
     required this._files,
     required this._media,
+    required this._removed,
     this._storage,
   });
 
   final FileSystemService _files;
   final MediaService _media;
+  final RemovedItemsStore _removed;
 
   /// Android storage access; null on desktop.
   final StoragePermissionService? _storage;
@@ -37,10 +40,23 @@ class LibraryRepository {
 
   bool get canShare => _files.canShare;
 
-  /// Files in [dir], newest first.
+  /// Files in [dir], newest first, without the removed ones (D-27).
   Future<List<LibraryItem>> list(Directory dir) async {
     await _storage?.ensureGranted();
-    return _files.list(dir);
+    final all = await _files.list(dir);
+    await _removed.prune(dir.path, all);
+    return [
+      for (final i in all)
+        if (!_removed.contains(i)) i,
+    ];
+  }
+
+  /// Removes every file in [dir] from the library for good, keeping the
+  /// files on disk (D-26). Returns how many were removed.
+  Future<int> removeAll(Directory dir) async {
+    final items = await list(dir);
+    await _removed.addAll(items);
+    return items.length;
   }
 
   /// Moves [items] to the system bin (docs/spec-v0.2.md D-23). Every item

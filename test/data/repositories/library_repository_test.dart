@@ -6,11 +6,13 @@ import 'package:ftube/data/services/android/storage_permission_service.dart';
 import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/data/services/file_system_service.dart';
 import 'package:ftube/data/services/process_runner.dart';
+import 'package:ftube/data/services/removed_items_store.dart';
 import 'package:ftube/domain/exceptions/ftube_exception.dart';
 import 'package:ftube/domain/models/models.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 
+import '../../ui/helpers.dart';
 import '../services/desktop/fakes.dart';
 import 'fake_media_service.dart';
 
@@ -22,10 +24,12 @@ void main() {
   late MockProcessRunner runner;
   late MockStorage storage;
   late FileSystemService files;
+  late RemovedItemsStore removed;
 
   LibraryRepository repo({bool android = false}) => LibraryRepository(
     files: files,
     media: media,
+    removed: removed,
     storage: android ? storage : null,
   );
 
@@ -34,7 +38,8 @@ void main() {
 
   Future<LibraryItem> item(String name) => files.stat(write(name).path);
 
-  setUp(() {
+  setUp(() async {
+    removed = RemovedItemsStore(await testPrefs());
     dir = Directory.systemTemp.createTempSync('ftube_lib_');
     media = FakeMediaService();
     runner = MockProcessRunner();
@@ -47,6 +52,37 @@ void main() {
   });
 
   tearDown(() => dir.deleteSync(recursive: true));
+
+  group('removeAll', () {
+    test('hides every file for good and keeps them on disk', () async {
+      write('a.mp4');
+      write('b.mp3');
+      expect(await repo().removeAll(dir), 2);
+      expect(await repo().list(dir), isEmpty);
+      expect(File(p.join(dir.path, 'a.mp4')).existsSync(), isTrue);
+    });
+
+    test(
+      'a new file, or one with the same name but new content, shows',
+      () async {
+        write('a.mp4');
+        await repo().removeAll(dir);
+        write('b.mp3');
+        File(p.join(dir.path, 'a.mp4')).writeAsStringSync('a longer body');
+        final names = [for (final i in await repo().list(dir)) i.name];
+        expect(names, unorderedEquals(['a.mp4', 'b.mp3']));
+      },
+    );
+
+    test('entries of deleted files are pruned', () async {
+      write('a.mp4');
+      await repo().removeAll(dir);
+      expect(removed.length, 1);
+      File(p.join(dir.path, 'a.mp4')).deleteSync();
+      await repo().list(dir);
+      expect(removed.length, 0);
+    });
+  });
 
   group('list', () {
     test('lists the folder', () async {

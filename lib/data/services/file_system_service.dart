@@ -56,6 +56,19 @@ class FileSystemService {
     }
   }
 
+  /// Deletes everything inside [dir], keeping [dir] itself. Entries that
+  /// can't be deleted, for example while in use, are skipped.
+  Future<void> emptyDir(Directory dir) async {
+    if (!dir.existsSync()) return;
+    await for (final entity in dir.list(followLinks: false)) {
+      try {
+        await entity.delete(recursive: true);
+      } on FileSystemException {
+        // In use or already gone.
+      }
+    }
+  }
+
   /// The [LibraryItem] for the file at [path].
   Future<LibraryItem> stat(String path) async {
     try {

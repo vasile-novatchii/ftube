@@ -39,12 +39,21 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final state = ref.watch(settingsViewModelProvider);
     final vm = ref.read(settingsViewModelProvider.notifier);
     ref.listen(settingsViewModelProvider, (prev, next) {
-      if (prev?.ytDlpUpdate != UpdateStatus.running) return;
-      final message = switch (next.ytDlpUpdate) {
-        UpdateStatus.done => l10n.ytDlpUpdated(next.ytDlpVersion ?? '?'),
-        UpdateStatus.failed => l10n.errorMessage(next.ytDlpUpdateError ?? ''),
-        _ => null,
-      };
+      String? message;
+      if (prev?.ytDlpUpdate == UpdateStatus.running) {
+        message = switch (next.ytDlpUpdate) {
+          UpdateStatus.done => l10n.ytDlpUpdated(next.ytDlpVersion ?? '?'),
+          UpdateStatus.failed => l10n.errorMessage(next.ytDlpUpdateError ?? ''),
+          _ => null,
+        };
+      }
+      if (prev?.clearData == UpdateStatus.running) {
+        message = switch (next.clearData) {
+          UpdateStatus.done => l10n.settingsClearDataDone,
+          UpdateStatus.failed => l10n.errorMessage(next.clearDataError ?? ''),
+          _ => message,
+        };
+      }
       if (message == null) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -186,6 +195,19 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             title: Text(l10n.settingsFfmpegVersion),
             subtitle: Text(_version(l10n, state, state.ffmpegVersion)),
           ),
+          _Header(l10n.settingsData),
+          ListTile(
+            key: const Key('settings.clearData'),
+            enabled: state.canClearData,
+            leading: const Icon(Icons.delete_sweep_outlined),
+            title: Text(l10n.settingsClearData),
+            subtitle: Text(
+              state.downloading
+                  ? l10n.settingsClearDataBusy
+                  : l10n.settingsClearDataHint,
+            ),
+            onTap: () => _confirmClearData(vm),
+          ),
           _Header(l10n.settingsAbout),
           ListTile(
             title: Text(l10n.settingsAppVersion),
@@ -209,6 +231,29 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmClearData(SettingsViewModel vm) async {
+    final l10n = context.l10n;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsClearDataTitle),
+        content: Text(l10n.settingsClearDataBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            key: const Key('settings.confirmClearData'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.settingsClearDataConfirm),
+          ),
+        ],
+      ),
+    );
+    if (ok ?? false) await vm.clearAppData();
   }
 
   static String _version(

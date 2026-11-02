@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,7 @@ import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/domain/exceptions/ftube_exception.dart';
 import 'package:ftube/domain/models/app_settings.dart';
 import 'package:ftube/domain/models/quality_preset.dart';
+import 'package:ftube/ui/settings/view_model/settings_view_model.dart';
 import 'package:ftube/ui/settings/widgets/settings_view.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -53,6 +56,64 @@ void main() {
 
   group('desktop', () {
     setUp(() => env = TestEnv.desktop());
+
+    testWidgets('clear app data asks first, then confirms with a SnackBar', (
+      tester,
+    ) async {
+      await pump(tester);
+      final tile = find.byKey(const Key('settings.clearData'));
+      await tester.ensureVisible(tile);
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(find.text('Clear app data?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      verifyNever(() => env.files.emptyDir(any()));
+
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('settings.confirmClearData')));
+      await tester.pumpAndSettle();
+      verify(() => env.files.emptyDir(any())).called(1);
+      expect(find.text('App data cleared.'), findsOneWidget);
+      expect(
+        container.read(settingsViewModelProvider).clearData,
+        UpdateStatus.done,
+      );
+    });
+
+    testWidgets('clear app data is disabled while a download runs', (
+      tester,
+    ) async {
+      await pump(tester);
+      container
+          .read(downloadRepositoryProvider)
+          .enqueue(
+            url: 'https://youtu.be/abc',
+            title: 'Song',
+            preset: QualityPreset.best,
+            outDir: Directory('/out'),
+          );
+      await tester.pumpAndSettle();
+      final tile = find.byKey(const Key('settings.clearData'));
+      expect(tester.widget<ListTile>(tile).enabled, isFalse);
+      expect(
+        find.text('Not available while a download is running.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a failed clear shows the error', (tester) async {
+      when(() => env.files.emptyDir(any())).thenThrow(const FileError('busy'));
+      await pump(tester);
+      final tile = find.byKey(const Key('settings.clearData'));
+      await tester.ensureVisible(tile);
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('settings.confirmClearData')));
+      await tester.pumpAndSettle();
+      expect(find.byType(SnackBar), findsOneWidget);
+    });
 
     for (final (locale, title, theme) in [
       (const Locale('en'), 'Settings', 'System default'),

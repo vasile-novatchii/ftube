@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,10 +10,12 @@ import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/domain/exceptions/ftube_exception.dart';
 import 'package:ftube/domain/models/app_settings.dart';
 import 'package:ftube/domain/models/quality_preset.dart';
+import 'package:ftube/ui/library/view_model/library_view_model.dart';
 import 'package:ftube/ui/settings/view_model/settings_view_model.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../helpers.dart';
+import '../library/library_fixtures.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -188,6 +191,63 @@ void main() {
       await vm.updateYtDlp();
       expect(state().ytDlpUpdate, UpdateStatus.failed);
       expect(state().ytDlpUpdateError, isA<ProcessFailed>());
+    });
+
+    group('clearAppData', () {
+      test(
+        'empties the cache and the library, keeps files and settings',
+        () async {
+          final disk = Disk(env.files);
+          final vm = await start({SettingsRepository.themeKey: 'dark'});
+          container.listen(libraryViewModelProvider, (_, _) {});
+          await pumpEventQueue();
+          expect(container.read(libraryViewModelProvider).items, hasLength(3));
+
+          await vm.clearAppData();
+          expect(state().clearData, UpdateStatus.done);
+          verify(() => env.files.emptyDir(dirAt('/tmp/ftube'))).called(1);
+          expect(container.read(libraryViewModelProvider).items, isEmpty);
+          expect(disk.items, hasLength(3), reason: 'files stay on disk');
+          expect(saved().theme, ThemePreference.dark);
+          verifyNever(() => env.files.trash(any()));
+
+          // A new download still shows.
+          disk.add('d.mp4', 5, DateTime(2026, 2));
+          await container.read(libraryViewModelProvider.notifier).load();
+          expect(
+            container.read(libraryViewModelProvider).items.single.name,
+            'd.mp4',
+          );
+        },
+      );
+
+      test('is blocked while a download is queued or running', () async {
+        final vm = await start();
+        expect(state().canClearData, isTrue);
+        container
+            .read(downloadRepositoryProvider)
+            .enqueue(
+              url: 'https://youtu.be/abc',
+              title: 'Song',
+              preset: QualityPreset.best,
+              outDir: Directory('/out'),
+            );
+        expect(state().downloading, isTrue);
+        expect(state().canClearData, isFalse);
+        await vm.clearAppData();
+        expect(state().clearData, UpdateStatus.idle);
+        verifyNever(() => env.files.emptyDir(any()));
+      });
+
+      test('reports a failure', () async {
+        when(() => env.files.emptyDir(any()))
+            .thenThrow(const FileError('busy'));
+        final vm = await start();
+        await vm.clearAppData();
+        expect(state().clearData, UpdateStatus.failed);
+        expect(state().clearDataError, isA<FileError>());
+        expect(state().canClearData, isTrue);
+      });
     });
 
     test('storage commands do nothing on desktop', () async {

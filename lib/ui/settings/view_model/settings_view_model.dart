@@ -9,6 +9,7 @@ import '../../../data/services/android/storage_permission_service.dart';
 import '../../../data/services/binary_service.dart';
 import '../../../domain/models/app_settings.dart';
 import '../../../domain/models/quality_preset.dart';
+import '../../library/view_model/library_view_model.dart';
 
 part 'settings_view_model.freezed.dart';
 part 'settings_view_model.g.dart';
@@ -34,6 +35,12 @@ abstract class SettingsState with _$SettingsState {
 
     /// Android only. Null until checked, and always null on desktop.
     StorageAccess? storageAccess,
+
+    /// Whether a download is queued or running; app data can't be cleared
+    /// then.
+    @Default(false) bool downloading,
+    @Default(UpdateStatus.idle) UpdateStatus clearData,
+    Object? clearDataError,
   }) = _SettingsState;
 
   const SettingsState._();
@@ -43,6 +50,8 @@ abstract class SettingsState with _$SettingsState {
   String? get downloadDir => settings.downloadDir ?? this.defaultDownloadDir;
 
   bool get usesDefaultDir => settings.downloadDir == null;
+
+  bool get canClearData => !downloading && clearData != UpdateStatus.running;
 
   /// Android stores files through plain paths in the public Downloads
   /// folder (D-13), and its folder picker returns content URIs instead.
@@ -91,10 +100,16 @@ class SettingsViewModel extends _$SettingsViewModel {
       currentSettingsProvider,
       (_, settings) => state = state.copyWith(settings: settings),
     );
+    final downloads = ref.read(downloadRepositoryProvider);
+    final sub = downloads.changes.listen(
+      (_) => state = state.copyWith(downloading: downloads.activeCount > 0),
+    );
+    ref.onDispose(sub.cancel);
     unawaited(_load());
     return SettingsState(
       settings: ref.read(currentSettingsProvider),
       isDesktop: ref.read(appPlatformProvider).isDesktop,
+      downloading: downloads.activeCount > 0,
     );
   }
 
@@ -186,6 +201,32 @@ class SettingsViewModel extends _$SettingsViewModel {
         ytDlpUpdate: UpdateStatus.failed,
         ytDlpUpdateError: e,
       );
+    }
+  }
+
+  /// Empties the cache and removes every library item for good, keeping
+  /// the files, the settings and the desktop tools (D-26). Not allowed
+  /// while a download is running. [SettingsState.clearData] reports the
+  /// outcome.
+  Future<void> clearAppData() async {
+    if (!state.canClearData) return;
+    state = state.copyWith(
+      clearData: UpdateStatus.running,
+      clearDataError: null,
+    );
+    try {
+      await ref
+          .read(fileSystemServiceProvider)
+          .emptyDir(ref.read(appDirsProvider).temp);
+      final dir = await ref.read(downloadDirectoryProvider.future);
+      if (dir != null) await ref.read(libraryRepositoryProvider).removeAll(dir);
+      if (ref.exists(libraryViewModelProvider)) {
+        await ref.read(libraryViewModelProvider.notifier).load();
+      }
+      if (ref.mounted) state = state.copyWith(clearData: UpdateStatus.done);
+    } on Object catch (e) {
+      if (!ref.mounted) return;
+      state = state.copyWith(clearData: UpdateStatus.failed, clearDataError: e);
     }
   }
 

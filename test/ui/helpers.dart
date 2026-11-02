@@ -50,6 +50,7 @@ CatalogEntry entry(Binary binary, int size) => CatalogEntry(
 class TestEnv {
   TestEnv.desktop() : platform = AppPlatform.desktop {
     _registerFallbacks();
+    when(() => files.emptyDir(any())).thenAnswer((_) async {});
     when(() => files.canOpen).thenReturn(true);
     when(() => files.canReveal).thenReturn(true);
     when(() => files.canShare).thenReturn(false);
@@ -61,6 +62,7 @@ class TestEnv {
 
   TestEnv.android() : platform = AppPlatform.android {
     _registerFallbacks();
+    when(() => files.emptyDir(any())).thenAnswer((_) async {});
     when(() => files.canOpen).thenReturn(true);
     when(() => files.canReveal).thenReturn(false);
     when(() => files.canShare).thenReturn(true);
