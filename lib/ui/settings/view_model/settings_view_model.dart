@@ -60,6 +60,27 @@ const defaultPresetChoices = [
   QualityPreset.audioOgg,
 ];
 
+/// Installed tool versions, null when unknown.
+typedef ToolVersions = ({String? ytDlp, String? ffmpeg});
+
+/// Runs the version commands once per app launch (D-19). Settings is
+/// auto-dispose, so reading the versions there re-ran them on every visit.
+@Riverpod(keepAlive: true)
+Future<ToolVersions> toolVersions(Ref ref) async {
+  final binaries = ref.read(binaryServiceProvider);
+  if (binaries == null) {
+    return (
+      ytDlp: null,
+      ffmpeg: await ref.read(ffmpegRunnerProvider).version(),
+    );
+  }
+  final (ytDlp, ffmpeg) = await (
+    binaries.version(Binary.ytDlp),
+    binaries.version(Binary.ffmpeg),
+  ).wait;
+  return (ytDlp: ytDlp, ffmpeg: ffmpeg);
+}
+
 @riverpod
 class SettingsViewModel extends _$SettingsViewModel {
   SettingsRepository get _repo => ref.read(settingsRepositoryProvider);
@@ -91,18 +112,18 @@ class SettingsViewModel extends _$SettingsViewModel {
   }
 
   Future<void> _loadVersions() async {
-    final binaries = ref.read(binaryServiceProvider);
-    final (String? ytDlp, String? ffmpeg) = binaries == null
-        ? (null, await ref.read(ffmpegRunnerProvider).version())
-        : await (
-            binaries.version(Binary.ytDlp),
-            binaries.version(Binary.ffmpeg),
-          ).wait;
+    ToolVersions? versions;
+    try {
+      versions = await ref.read(toolVersionsProvider.future);
+    } on Object {
+      // Retry on the next visit instead of caching the failure.
+      ref.invalidate(toolVersionsProvider);
+    }
     if (!ref.mounted) return;
     state = state.copyWith(
       loadingVersions: false,
-      ytDlpVersion: ytDlp,
-      ffmpegVersion: ffmpeg,
+      ytDlpVersion: versions?.ytDlp,
+      ffmpegVersion: versions?.ffmpeg,
     );
   }
 
@@ -152,6 +173,8 @@ class SettingsViewModel extends _$SettingsViewModel {
     );
     try {
       final version = await binaries.updateYtDlp();
+      // The next visit reads the updated version.
+      ref.invalidate(toolVersionsProvider);
       if (!ref.mounted) return;
       state = state.copyWith(
         ytDlpUpdate: UpdateStatus.done,

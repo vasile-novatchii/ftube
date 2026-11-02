@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ftube/config/providers.dart';
 import 'package:ftube/data/repositories/settings_repository.dart';
 import 'package:ftube/data/services/android/storage_permission_service.dart';
+import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/domain/exceptions/ftube_exception.dart';
 import 'package:ftube/domain/models/app_settings.dart';
 import 'package:ftube/domain/models/quality_preset.dart';
@@ -126,6 +127,51 @@ void main() {
       expect(state().ytDlpUpdate, UpdateStatus.done);
       expect(state().ytDlpVersion, '2.0');
       verify(() => env.binaries.updateYtDlp()).called(1);
+    });
+
+    test(
+      'versions are read once per session and again after an update',
+      () async {
+        when(() => env.binaries.updateYtDlp()).thenAnswer((_) async => '2.0');
+        container = await env.container();
+        Future<void> visit() async {
+          final sub = container.listen(settingsViewModelProvider, (_, _) {});
+          await pumpEventQueue();
+          sub.close();
+          await pumpEventQueue();
+        }
+
+        await visit();
+        await visit();
+        verify(() => env.binaries.version(Binary.ytDlp)).called(1);
+        verify(() => env.binaries.version(Binary.ffmpeg)).called(1);
+
+        final sub = container.listen(settingsViewModelProvider, (_, _) {});
+        await container.read(settingsViewModelProvider.notifier).updateYtDlp();
+        sub.close();
+        await pumpEventQueue();
+        await visit();
+        verify(() => env.binaries.version(Binary.ytDlp)).called(1);
+      },
+    );
+
+    test('a failed version lookup is retried on the next visit', () async {
+      var calls = 0;
+      when(() => env.binaries.version(Binary.ytDlp)).thenAnswer((_) async {
+        if (calls++ == 0) throw const ProcessFailed(1, 'boom');
+        return '1.0';
+      });
+      container = await env.container();
+      final first = container.listen(settingsViewModelProvider, (_, _) {});
+      await pumpEventQueue();
+      expect(state().loadingVersions, isFalse);
+      expect(state().ytDlpVersion, isNull);
+      first.close();
+      await pumpEventQueue();
+
+      container.listen(settingsViewModelProvider, (_, _) {});
+      await pumpEventQueue();
+      expect(state().ytDlpVersion, '1.0');
     });
 
     test('updateYtDlp keeps the old version when none is reported', () async {
