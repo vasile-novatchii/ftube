@@ -140,7 +140,7 @@ flowchart TD
 - D-20: The desktop window opens at 800×600 everywhere - macOS already used it, and Windows and Linux used 1280×720. Edge-drag resize is off and maximize stays on:
   - Windows: no `WS_THICKFRAME`, `WS_MAXIMIZEBOX` kept.
   - macOS: content min size = max size = 800×600, full screen allowed.
-  - Linux: fixed size through GTK geometry hints, with maximize kept if GTK allows it (R-13).
+  - Linux: 800×600 default and minimum through GTK geometry hints. The edges still resize, because a GTK window that can't be resized can't be maximized either (R-13).
 - D-21: Navigation is chosen by window width (600dp), not by platform - a landscape phone or a maximized desktop gets the rail, and a split-screen half gets the bottom bar. Page content has a maximum width and is centered beyond it.
 - D-22: Android declares `android:resizeableActivity="true"` and no orientation lock - the activity already handles configuration changes itself, so only the layout needs work.
 - D-23: Delete moves files to the system bin through a `TrashService` - the user can still get files back after the undo window:
@@ -205,7 +205,7 @@ flowchart LR
 ## 7. Constraints and risks
 
 - R-12: Android's `createTrashRequest` returns a `PendingIntent` that may show a system "move to bin?" dialog after the app's own confirm. If so, the user sees two prompts; this is accepted, and it is checked on a device in P2.
-- R-13: GTK may not allow maximize on a window that can't be resized. If it doesn't, Linux keeps edge resize with an 800×600 minimum, and the decision is updated.
+- R-13: GTK doesn't offer maximize on a window that can't be resized (not yet checked on a Linux desktop), so Linux keeps edge resize with an 800×600 minimum. Check on GNOME and KDE before release.
 - R-14: Removing items from the library is permanent. The confirm dialog says so.
 - R-15: Machine-assisted translations for RU, ES, DE and AR need a native speaker review before release.
 - R-16: `RemovedItemsStore` grows with every clear. Entries whose file no longer exists are pruned when the library is listed.

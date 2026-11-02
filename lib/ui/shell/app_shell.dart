@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../config/providers.dart';
 import '../core/l10n.dart';
 import '../home/widgets/home_view.dart';
 import '../library/widgets/library_view.dart';
 import '../queue/view_model/queue_view_model.dart';
 import '../settings/widgets/settings_view.dart';
 
-/// Home, Library and Settings. NavigationBar on Android, NavigationRail on
-/// desktop.
+/// Home, Library and Settings. A bottom NavigationBar in narrow windows and
+/// a NavigationRail from [railMinWidth] up, on every platform (D-21).
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -17,13 +16,19 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
+/// Narrowest window that gets the side rail.
+const railMinWidth = 600.0;
+
+/// Pages stop growing at this width and are centered beyond it.
+const maxContentWidth = 1000.0;
+
 class _AppShellState extends ConsumerState<AppShell> {
   var _index = 0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final desktop = ref.watch(appPlatformProvider).isDesktop;
+    final wide = MediaQuery.sizeOf(context).width >= railMinWidth;
     final destinations = [
       (Icons.home_outlined, Icons.home, l10n.navHome),
       (Icons.video_library_outlined, Icons.video_library, l10n.navLibrary),
@@ -35,14 +40,20 @@ class _AppShellState extends ConsumerState<AppShell> {
       label: Text('$active'),
       child: Icon(icon),
     );
-    final page = switch (_index) {
-      0 => const HomeView(),
-      1 => const LibraryView(),
-      _ => const SettingsView(),
-    };
+    final page = Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: maxContentWidth),
+        child: switch (_index) {
+          0 => const HomeView(),
+          1 => const LibraryView(),
+          _ => const SettingsView(),
+        },
+      ),
+    );
     void select(int i) => setState(() => _index = i);
 
-    if (!desktop) {
+    if (!wide) {
       return Scaffold(
         body: page,
         bottomNavigationBar: NavigationBar(

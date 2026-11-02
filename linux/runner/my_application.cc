@@ -52,7 +52,13 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "ftube");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  // 800x600 by default and at least. GTK can't keep maximize on a window
+  // that can't be resized, so the edges still resize (docs/spec-v0.2.md R-13).
+  gtk_window_set_default_size(window, 800, 600);
+  GdkGeometry geometry = {};
+  geometry.min_width = 800;
+  geometry.min_height = 600;
+  gtk_window_set_geometry_hints(window, nullptr, &geometry, GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

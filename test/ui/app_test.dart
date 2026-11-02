@@ -11,6 +11,7 @@ import 'package:ftube/ui/library/widgets/library_view.dart';
 import 'package:ftube/ui/permission/widgets/permission_view.dart';
 import 'package:ftube/ui/settings/widgets/settings_view.dart';
 import 'package:ftube/ui/setup/widgets/setup_view.dart';
+import 'package:ftube/ui/shell/app_shell.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'helpers.dart';
@@ -94,7 +95,13 @@ void main() {
   group('android', () {
     setUp(() => env = TestEnv.android());
 
-    testWidgets('uses a bottom navigation bar', (tester) async {
+    testWidgets('uses a bottom navigation bar on a portrait phone', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(360, 640)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await pump(tester);
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
@@ -107,7 +114,7 @@ void main() {
       expect(find.byType(PermissionView), findsOneWidget);
       await tester.tap(find.byKey(const Key('permission.later')));
       await tester.pumpAndSettle();
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(AppShell), findsOneWidget);
     });
   });
 }

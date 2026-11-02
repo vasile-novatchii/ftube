@@ -135,7 +135,9 @@ bool Win32Window::Create(const std::wstring& title,
   double scale_factor = dpi / 96.0;
 
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+      // No WS_THICKFRAME: the edges don't resize, but maximize still works
+      // (docs/spec-v0.2.md D-20).
+      window_class, title.c_str(), WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
