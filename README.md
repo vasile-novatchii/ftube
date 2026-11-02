@@ -1,4 +1,4 @@
-# Ftube
+# Ftube Downloader
 
 Download and convert media on macOS, Windows, Linux and Android.
 A Flutter port of [`ftube.sh`](https://github.com/vasile-novatchii/Linux-Features/blob/master/ftube.sh).

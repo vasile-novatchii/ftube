@@ -67,6 +67,7 @@ dev_dependencies:
   yaml: ^3.1.4
   mocktail: ^1.0.5
   riverpod_generator: ^4.0.9
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -82,6 +83,7 @@ flutter:
 
   assets:
     - assets/binaries/catalog.json
+    - assets/icon/ftube_256.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -113,3 +115,21 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App icon (docs/spec-v0.2.md D-29). Render the PNGs with
+# tool/render_icon.mjs, then run `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  image_path: assets/icon/ftube.png
+  android: true
+  min_sdk_android: 31
+  adaptive_icon_background: assets/icon/ftube_background.png
+  adaptive_icon_foreground: assets/icon/ftube_foreground.png
+  adaptive_icon_monochrome: assets/icon/ftube_foreground.png
+  ios: false
+  macos:
+    generate: true
+    image_path: assets/icon/ftube_macos.png
+  windows:
+    generate: true
+    image_path: assets/icon/ftube.png
+    icon_size: 256

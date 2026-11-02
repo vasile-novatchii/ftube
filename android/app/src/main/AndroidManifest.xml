@@ -7,7 +7,7 @@
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage"/>
     <application
-        android:label="Ftube"
+        android:label="Ftube Downloader"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

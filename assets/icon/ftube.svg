@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Ftube Downloader icon (docs/spec-v0.2.md D-29). tool/render_icon.mjs
+       renders the platform PNGs from the "tile" and "glyph" groups. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF5A36"/>
+      <stop offset="0.55" stop-color="#E5195E"/>
+      <stop offset="1" stop-color="#7A1FA2"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="arrow" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#FFFFFF"/>
+      <g fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M472 384 V522"/>
+        <path d="M416 468 L472 524 L528 468"/>
+      </g>
+    </mask>
+  </defs>
+  <g id="tile">
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#shine)"/>
+  </g>
+  <g id="glyph" fill="#FFFFFF" transform="translate(518 505) scale(1.1) translate(-518 -505)">
+    <path d="M372 292 L372 628 L664 460 Z" stroke="#FFFFFF" stroke-width="60" stroke-linejoin="round" mask="url(#arrow)"/>
+    <rect x="352" y="704" width="332" height="44" rx="22"/>
+  </g>
+</svg>
