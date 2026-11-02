@@ -154,7 +154,7 @@ flowchart TD
 - D-27: Removed library items are stored in prefs by `RemovedItemsStore` as `(path, size, modifiedMs)` - the library has no list of its own (it lists the folder), so this filter is the only way to remove items without deleting files.
 - D-28: The app's display name is "Ftube Downloader" in `appTitle`, the Android label, the macOS `CFBundleDisplayName`, the Windows and Linux window titles, `Runner.rc` FileDescription/ProductName and the README. Binary names, bundle and package IDs, method channel names and release file names keep `ftube`/`Ftube` - so updates install over v0.1 and the release workflow paths don't change.
 - D-29: The icon is a rounded square with a gradient, a play triangle and a download arrow, drawn once as `assets/icon/ftube.svg`. `tool/render_icon.mjs` (resvg) renders the PNGs `flutter_launcher_icons` needs, since it doesn't read SVG; `flutter_launcher_icons` (dev dependency) then generates the Android adaptive and monochrome, macOS and Windows `.ico` icons. It has no Linux target, so the Linux runner sets the window icon from the bundled `assets/icon/ftube_256.png`.
-- D-30: New languages are Russian, Spanish, German and Arabic (`app_ru/es/de/ar.arb`, `AppLanguage.ru/es/de/ar`). Arabic is right-to-left: layouts use directional padding and alignment (`EdgeInsetsDirectional`, `AlignmentDirectional`) only.
+- D-30: New languages are Russian, Spanish, German and Arabic (`app_ru/es/de/ar.arb`, `AppLanguage.ru/es/de/ar`). Arabic is right-to-left: layouts use directional padding and alignment (`EdgeInsetsDirectional`, `AlignmentDirectional`) only. Settings controls move under their title below 480 px wide, so long translations fit.
 
 ## 5. Testing
 

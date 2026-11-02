@@ -83,6 +83,12 @@ void main() {
         'Coadă (0)',
         'Nicio descărcare încă.',
       ),
+      (
+        const Locale('ar'),
+        ThemeMode.light,
+        'قائمة الانتظار (0)',
+        'لا توجد تنزيلات بعد.',
+      ),
     ]) {
       testWidgets('empty (${locale.languageCode}, ${themeMode.name})', (
         tester,

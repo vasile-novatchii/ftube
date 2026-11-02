@@ -67,9 +67,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           _Header(l10n.settingsAppearance),
-          ListTile(
+          _ControlTile(
             title: Text(l10n.settingsTheme),
-            trailing: DropdownButton<ThemePreference>(
+            control: DropdownButton<ThemePreference>(
               key: const Key('settings.theme'),
               value: settings.theme,
               onChanged: (t) => t == null ? null : vm.setTheme(t),
@@ -79,9 +79,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               ],
             ),
           ),
-          ListTile(
+          _ControlTile(
             title: Text(l10n.settingsLanguage),
-            trailing: DropdownButton<AppLanguage>(
+            control: DropdownButton<AppLanguage>(
               key: const Key('settings.language'),
               value: settings.language,
               onChanged: (lang) => lang == null ? null : vm.setLanguage(lang),
@@ -121,9 +121,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ],
               ),
             ),
-          ListTile(
+          _ControlTile(
             title: Text(l10n.settingsDefaultQuality),
-            trailing: DropdownButton<QualityPreset>(
+            control: DropdownButton<QualityPreset>(
               key: const Key('settings.preset'),
               value: settings.defaultPreset,
               onChanged: (p) => p == null ? null : vm.setDefaultPreset(p),
@@ -155,7 +155,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           ),
           if (state.storageAccess case final access?) ...[
             _Header(l10n.settingsStorageAccess),
-            ListTile(
+            _ControlTile(
               key: const Key('settings.storage'),
               leading: Icon(
                 access == StorageAccess.granted
@@ -167,7 +167,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     ? l10n.storageGranted
                     : l10n.storageDenied,
               ),
-              trailing: access == StorageAccess.granted
+              control: access == StorageAccess.granted
                   ? null
                   : FilledButton(
                       onPressed: vm.requestStorageAccess,
@@ -177,10 +177,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           ],
           _Header(l10n.settingsTools),
           if (state.isDesktop)
-            ListTile(
+            _ControlTile(
               title: Text(l10n.settingsYtDlpVersion),
               subtitle: Text(_version(l10n, state, state.ytDlpVersion)),
-              trailing: state.ytDlpUpdate == UpdateStatus.running
+              control: state.ytDlpUpdate == UpdateStatus.running
                   ? const SizedBox.square(
                       dimension: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
@@ -278,5 +278,58 @@ class _Header extends StatelessWidget {
       style: Theme.of(context).textTheme.titleSmall
           ?.copyWith(color: Theme.of(context).colorScheme.primary),
     ),
+  );
+}
+
+/// A setting with a control at the end of the row. On a narrow screen the
+/// control moves under the title, so long translations still fit (D-30).
+class _ControlTile extends StatelessWidget {
+  const _ControlTile({
+    required this.title,
+    required this.control,
+    this.leading,
+    this.subtitle,
+    super.key,
+  });
+
+  /// Below this width the control goes under the title.
+  static const stackBelow = 480.0;
+
+  final Widget? leading;
+  final Widget title;
+  final Widget? subtitle;
+  final Widget? control;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (control == null || constraints.maxWidth >= stackBelow) {
+        return ListTile(
+          leading: leading,
+          title: title,
+          subtitle: subtitle,
+          trailing: control,
+        );
+      }
+      return ListTile(
+        leading: leading,
+        title: title,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ?subtitle,
+            Padding(
+              padding: const EdgeInsetsDirectional.only(top: 4),
+              // In a tiny pop-up window even a whole row may be too short.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: control,
+              ),
+            ),
+          ],
+        ),
+      );
+    },
   );
 }

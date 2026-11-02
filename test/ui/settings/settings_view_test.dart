@@ -118,6 +118,7 @@ void main() {
     for (final (locale, title, theme) in [
       (const Locale('en'), 'Settings', 'System default'),
       (const Locale('ro'), 'Setări', 'Implicită sistemului'),
+      (const Locale('ar'), 'الإعدادات', 'حسب النظام'),
     ]) {
       for (final mode in [ThemeMode.light, ThemeMode.dark]) {
         testWidgets('renders in ${locale.languageCode} ${mode.name}', (

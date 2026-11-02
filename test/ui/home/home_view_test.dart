@@ -118,6 +118,13 @@ void main() {
         'Lipește un link YouTube pentru a începe.',
         'Coadă (0)',
       ),
+      (
+        const Locale('ar'),
+        ThemeMode.light,
+        'الصق رابط YouTube',
+        'الصق رابط YouTube للبدء.',
+        'قائمة الانتظار (0)',
+      ),
     ]) {
       testWidgets('starts empty (${locale.languageCode}, ${themeMode.name})', (
         tester,

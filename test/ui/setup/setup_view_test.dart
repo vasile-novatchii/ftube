@@ -49,6 +49,7 @@ void main() {
   for (final (locale, button) in [
     (const Locale('en'), 'Download tools'),
     (const Locale('ro'), 'Descarcă instrumentele'),
+    (const Locale('ar'), 'تنزيل الأدوات'),
   ]) {
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
       testWidgets('offers the install in ${locale.languageCode} ${mode.name}', (

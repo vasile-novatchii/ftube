@@ -63,6 +63,7 @@ void main() {
     for (final (locale, themeMode, title, search) in [
       (const Locale('en'), ThemeMode.light, 'Library', 'Search files'),
       (const Locale('ro'), ThemeMode.dark, 'Bibliotecă', 'Caută fișiere'),
+      (const Locale('ar'), ThemeMode.light, 'المكتبة', 'البحث في الملفات'),
     ]) {
       testWidgets('lists files in ${locale.languageCode} '
           '${themeMode.name}', (tester) async {

@@ -43,6 +43,7 @@ void main() {
   for (final (locale, title) in [
     (const Locale('en'), 'Allow access to files'),
     (const Locale('ro'), 'Permite accesul la fișiere'),
+    (const Locale('ar'), 'السماح بالوصول إلى الملفات'),
   ]) {
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
       testWidgets('renders in ${locale.languageCode} ${mode.name}', (

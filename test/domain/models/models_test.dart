@@ -152,7 +152,14 @@ void main() {
     });
 
     test('languages expose their locale code', () {
-      expect(AppLanguage.values.map((l) => l.code), ['en', 'ro']);
+      expect(AppLanguage.values.map((l) => l.code), [
+        'en',
+        'ro',
+        'ru',
+        'es',
+        'de',
+        'ar',
+      ]);
     });
   });
 }

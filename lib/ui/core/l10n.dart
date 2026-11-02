@@ -20,6 +20,10 @@ extension AppLocalizationsLabels on AppLocalizations {
   String languageLabel(AppLanguage language) => switch (language) {
     AppLanguage.en => languageEn,
     AppLanguage.ro => languageRo,
+    AppLanguage.ru => languageRu,
+    AppLanguage.es => languageEs,
+    AppLanguage.de => languageDe,
+    AppLanguage.ar => languageAr,
   };
 
   String presetLabel(QualityPreset preset) => switch (preset) {

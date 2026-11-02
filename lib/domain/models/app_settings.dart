@@ -10,7 +10,11 @@ enum ThemePreference { system, light, dark }
 /// UI language. English is the default and the fallback.
 enum AppLanguage {
   en('en'),
-  ro('ro');
+  ro('ro'),
+  ru('ru'),
+  es('es'),
+  de('de'),
+  ar('ar');
 
   const AppLanguage(this.code);
 
