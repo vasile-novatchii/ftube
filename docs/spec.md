@@ -1,5 +1,7 @@
 # Ftube - Specification
 
+> This is the v0.1 specification. v0.2 changes are in [spec-v0.2.md](spec-v0.2.md).
+
 ## Summary
 
 - Ftube is a cross-platform Flutter port of `ftube.sh` from `vasile-novatchii/Linux-Features`. It fetches media info, downloads in any quality, extracts audio, converts media, and manages the downloaded files.
