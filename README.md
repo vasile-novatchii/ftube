@@ -3,7 +3,7 @@
 Download and convert media on macOS, Windows, Linux and Android.
 A Flutter port of [`ftube.sh`](https://github.com/vasile-novatchii/Linux-Features/blob/master/ftube.sh).
 
-> Status: first release, v0.1.0. See [docs/spec.md](docs/spec.md) for the full specification.
+> Status: v0.2.0, a UX release: fixed desktop window, Android multi-window, delete to the bin with Undo, clear app data, a new icon and Russian, Spanish, German and Arabic. See [docs/spec.md](docs/spec.md) and [docs/spec-v0.2.md](docs/spec-v0.2.md).
 
 ## Install
 
