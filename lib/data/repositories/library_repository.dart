@@ -43,23 +43,13 @@ class LibraryRepository {
     return _files.list(dir);
   }
 
-  /// Deletes [items] one by one. Every item is tried; the first failure is
-  /// rethrown at the end. Returns how many were deleted.
+  /// Moves [items] to the system bin (docs/spec-v0.2.md D-23). Every item
+  /// is tried; a failure is thrown at the end. Returns how many were moved,
+  /// which is 0 when the user cancels the Android system dialog.
   Future<int> delete(Iterable<LibraryItem> items) async {
     await _storage?.ensureGranted();
-    var deleted = 0;
-    FtubeException? firstError;
-    for (final item in items) {
-      try {
-        await _files.delete(item.path);
-        deleted++;
-        await _storage?.scanFile(item.path);
-      } on FtubeException catch (e) {
-        firstError ??= e;
-      }
-    }
-    if (firstError != null) throw firstError;
-    return deleted;
+    final moved = await _files.trash([for (final i in items) i.path]);
+    return moved.length;
   }
 
   /// Renames [item] to [newName], keeping its extension. Typing the

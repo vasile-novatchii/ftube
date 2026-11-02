@@ -64,21 +64,33 @@ void main() {
   });
 
   group('delete', () {
-    test('deletes every item and announces it on Android', () async {
+    late List<List<String>> trashed;
+
+    setUp(() {
+      trashed = [];
+      files = FileSystemService(runner: runner, os: DesktopOs.linux);
+      when(() => runner.run('gio', any())).thenAnswer((i) async {
+        final path = (i.positionalArguments[1] as List<String>).last;
+        trashed.add([path]);
+        File(path).deleteSync();
+        return const ProcessOutput(0, '', '');
+      });
+    });
+
+    test('moves every item to the bin', () async {
       final items = [await item('a.mp4'), await item('b.mp3')];
       expect(await repo(android: true).delete(items), 2);
       expect(dir.listSync(), isEmpty);
-      verify(() => storage.scanFile(items[0].path)).called(1);
-      verify(() => storage.scanFile(items[1].path)).called(1);
+      expect(trashed.expand((t) => t), [items[0].path, items[1].path]);
     });
 
-    test('tries every item, then throws the first error', () async {
-      final a = await item('a.mp4');
-      final b = await item('b.mp4');
-      Process.runSync('chmod', ['555', dir.path]);
-      addTearDown(() => Process.runSync('chmod', ['755', dir.path]));
-      await expectLater(repo().delete([a, b]), throwsA(isA<FileError>()));
-    }, skip: Platform.isWindows ? 'no chmod' : null);
+    test('needs storage access on Android', () async {
+      when(storage.ensureGranted).thenThrow(const StoragePermission());
+      await expectLater(
+        repo(android: true).delete([await item('a.mp4')]),
+        throwsA(isA<StoragePermission>()),
+      );
+    });
 
     test('an empty list deletes nothing', () async {
       expect(await repo().delete(const []), 0);

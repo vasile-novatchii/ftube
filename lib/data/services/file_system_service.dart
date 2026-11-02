@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 import '../../domain/exceptions/ftube_exception.dart';
@@ -8,7 +9,7 @@ import 'android/android_file_launcher.dart';
 import 'binary_service.dart';
 import 'process_runner.dart';
 
-/// Lists, renames and deletes files, and opens them with the system apps.
+/// Lists, renames and trashes files, and opens them with the system apps.
 ///
 /// File system failures are reported as [FileError].
 class FileSystemService {
@@ -64,14 +65,53 @@ class FileSystemService {
     }
   }
 
-  /// Deletes the file at [path]. A missing file is not an error.
-  Future<void> delete(String path) async {
-    final file = File(path);
+  /// Reaches the bin through native code on macOS, Windows and Android
+  /// (docs/spec-v0.2.md D-23).
+  static const trashChannel = MethodChannel('io.github.infvyr.ftube/trash');
+
+  /// Moves [paths] to the system bin and returns the ones moved. Missing
+  /// files are skipped. On Android the user may cancel the system dialog,
+  /// and then nothing moves. Every file is tried; a failure is thrown as
+  /// [FileError] at the end.
+  Future<List<String>> trash(List<String> paths) async {
+    final existing = [
+      for (final path in paths)
+        if (File(path).existsSync()) path,
+    ];
+    if (existing.isEmpty) return const [];
+    if (os == DesktopOs.linux) return _gioTrash(existing);
+    final Map<Object?, Object?>? reply;
     try {
-      if (file.existsSync()) await file.delete();
-    } on FileSystemException catch (e) {
-      throw FileError(_detail(e));
+      reply = await trashChannel.invokeMapMethod<Object?, Object?>('trash', {
+        'paths': existing,
+      });
+    } on PlatformException catch (e) {
+      throw FileError(e.message ?? e.code);
+    } on MissingPluginException {
+      throw const Unsupported('trash');
     }
+    final moved = [...?(reply?['moved'] as List<Object?>?)?.cast<String>()];
+    if (reply?['error'] case final String error) throw FileError(error);
+    return moved;
+  }
+
+  Future<List<String>> _gioTrash(List<String> paths) async {
+    final moved = <String>[];
+    FtubeException? firstError;
+    for (final path in paths) {
+      try {
+        final out = await _runner.run('gio', ['trash', '--', path]);
+        if (out.exitCode == 0) {
+          moved.add(path);
+        } else {
+          firstError ??= FileError('gio trash exited with ${out.exitCode}');
+        }
+      } on ProcessException catch (e) {
+        throw Unsupported('gio: ${e.message}');
+      }
+    }
+    if (firstError != null) throw firstError;
+    return moved;
   }
 
   /// Renames [path] to [newPath]. Throws [FileExists] when [newPath] is

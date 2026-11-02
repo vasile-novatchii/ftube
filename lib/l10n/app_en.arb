@@ -254,8 +254,8 @@
       }
     }
   },
-  "libraryDeleteBody": "Files are removed from the disk, not moved to the trash.",
-  "libraryDeleted": "{count, plural, =1{File deleted.} other{{count} files deleted.}}",
+  "libraryDeleteBody": "Files are moved to the bin. You can restore them from there.",
+  "libraryDeleted": "{count, plural, =1{File moved to the bin.} other{{count} files moved to the bin.}}",
   "@libraryDeleted": {
     "placeholders": {
       "count": {

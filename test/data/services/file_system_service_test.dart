@@ -15,6 +15,8 @@ import 'desktop/fakes.dart';
 class MockLauncher extends Mock implements AndroidFileLauncher {}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory dir;
   late MockProcessRunner runner;
 
@@ -72,20 +74,79 @@ void main() {
     });
   });
 
-  group('delete', () {
-    test('removes the file; a missing file is fine', () async {
-      final f = write('a.mp4');
-      await service().delete(f.path);
-      expect(f.existsSync(), isFalse);
-      await service().delete(f.path);
+  group('trash', () {
+    final calls = <List<String>>[];
+    Map<String, Object?> Function(List<String>) reply = (paths) => {
+      'moved': paths,
+      'error': null,
+    };
+
+    setUp(() {
+      calls.clear();
+      reply = (paths) => {'moved': paths, 'error': null};
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(FileSystemService.trashChannel, (call) {
+            final paths = ((call.arguments as Map)['paths'] as List)
+                .cast<String>();
+            calls.add(paths);
+            return Future.value(reply(paths));
+          });
     });
 
-    test('a read-only folder throws FileError', () async {
-      final f = write('a.mp4');
-      Process.runSync('chmod', ['555', dir.path]);
-      addTearDown(() => Process.runSync('chmod', ['755', dir.path]));
-      await expectLater(service().delete(f.path), throwsA(isA<FileError>()));
-    }, skip: Platform.isWindows ? 'no chmod' : null);
+    tearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(FileSystemService.trashChannel, null),
+    );
+
+    test('sends existing files to the channel in one call', () async {
+      final a = write('a.mp4');
+      final missing = p.join(dir.path, 'gone.mp4');
+      final moved = await service(DesktopOs.macos).trash([a.path, missing]);
+      expect(calls, [
+        [a.path],
+      ]);
+      expect(moved, [a.path]);
+    });
+
+    test('only missing files is a no-op', () async {
+      expect(await service(null).trash([p.join(dir.path, 'x')]), isEmpty);
+      expect(calls, isEmpty);
+    });
+
+    test('a cancelled Android dialog moves nothing', () async {
+      reply = (_) => {'moved': <String>[], 'error': null};
+      expect(await service(null).trash([write('a.mp4').path]), isEmpty);
+    });
+
+    test('a native error is a FileError', () async {
+      reply = (_) => {'moved': <String>[], 'error': 'locked'};
+      await expectLater(
+        service(DesktopOs.windows).trash([write('a.mp4').path]),
+        throwsA(isA<FileError>()),
+      );
+    });
+
+    test('Linux uses gio trash per file and reports failures', () async {
+      final a = write('a.mp4');
+      final b = write('b.mp4');
+      when(() => runner.run('gio', ['trash', '--', b.path]))
+          .thenAnswer((_) async => const ProcessOutput(1, '', 'no'));
+      await expectLater(
+        service().trash([a.path, b.path]),
+        throwsA(isA<FileError>()),
+      );
+      verify(() => runner.run('gio', ['trash', '--', a.path])).called(1);
+      expect(calls, isEmpty);
+    });
+
+    test('Linux without gio is Unsupported', () async {
+      when(() => runner.run(any(), any()))
+          .thenThrow(const ProcessException('gio', []));
+      await expectLater(
+        service().trash([write('a.mp4').path]),
+        throwsA(isA<Unsupported>()),
+      );
+    });
   });
 
   group('rename', () {

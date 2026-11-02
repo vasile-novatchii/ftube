@@ -145,19 +145,26 @@ void main() {
       await tester.tap(key('library.confirmDelete'));
       await tester.pump();
       expect(find.text('a.mp4'), findsNothing);
-      expect(find.text('File deleted.'), findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('File moved to the bin.'), findsOneWidget);
+      String seconds() => tester.widget<Text>(key('library.undoSeconds')).data!;
+      expect(seconds(), '5');
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(seconds(), '4');
       await tester.tap(find.text('Undo'));
       await tester.pumpAndSettle();
       expect(find.text('a.mp4'), findsOneWidget);
-      verifyNever(() => env.files.delete(any()));
+      verifyNever(() => env.files.trash(any()));
 
       await action(tester, 'delete', 'a.mp4');
       await tester.tap(key('library.confirmDelete'));
       await tester.pump();
+      // Let the SnackBar slide in, which starts its own timer.
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
-      verify(() => env.files.delete(path('a.mp4'))).called(1);
+      verify(() => env.files.trash([path('a.mp4')])).called(1);
+      await tester.pumpAndSettle();
+      expect(find.text('File moved to the bin.'), findsNothing);
       expect(find.text('a.mp4'), findsNothing);
       expect(disk.items, hasLength(2));
     });
@@ -180,7 +187,7 @@ void main() {
       expect(find.text('Delete 2 files?'), findsOneWidget);
       await tester.tap(key('library.confirmDelete'));
       await tester.pump();
-      expect(find.text('2 files deleted.'), findsOneWidget);
+      expect(find.text('2 files moved to the bin.'), findsOneWidget);
       expect(find.text('Library'), findsOneWidget);
       expect(find.text('c.txt'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
@@ -203,7 +210,7 @@ void main() {
       expect(find.text('Ștergi 3 fișiere?'), findsOneWidget);
       await tester.tap(key('library.confirmDelete'));
       await tester.pump();
-      expect(find.text('3 fișiere șterse.'), findsOneWidget);
+      expect(find.text('3 fișiere mutate în coș.'), findsOneWidget);
       expect(find.text('Your downloads will appear here.'), findsNothing);
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();

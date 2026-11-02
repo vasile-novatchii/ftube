@@ -145,9 +145,9 @@ flowchart TD
 - D-22: Android declares `android:resizeableActivity="true"` and no orientation lock - the activity already handles configuration changes itself, so only the layout needs work.
 - D-23: Delete moves files to the system bin through a `TrashService` - the user can still get files back after the undo window:
   - macOS: `FileManager.trashItem` through a method channel.
-  - Windows: `SHFileOperationW` with `FOF_ALLOWUNDO` through a method channel.
+  - Windows: `SHFileOperationW` with `FOF_ALLOWUNDO` and `FOF_WANTNUKEWARNING` through a method channel, so Windows asks before deleting a file for good (for example on a drive without a bin).
   - Linux: `gio trash <path>`.
-  - Android: `MediaStore.createTrashRequest` on the `io.github.infvyr.ftube/trash` channel, with a `MediaScannerConnection` scan first so the file has a MediaStore entry.
+  - Android: one `MediaStore.createTrashRequest` per delete on the `io.github.infvyr.ftube/trash` channel, with a `MediaScannerConnection` scan first so each file has a MediaStore URI. If the user cancels the system dialog, nothing moves and the files show again.
 - D-24: Every delete is confirmed by the app's own dialog first, then hidden for `undoWindow` = 5s with a Telegram-style countdown (a shrinking ring around the seconds left) next to Undo.
 - D-25: The link field has a clear (✕) `suffixIcon`, shown only while the field has text. It clears the controller and calls `setUrl('')`.
 - D-26: "Clear app data" is one action with no options - it deletes the contents of `AppDirs.temp` and removes every current library item for good. Settings and desktop binaries are kept.

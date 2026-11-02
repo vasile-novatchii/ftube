@@ -132,7 +132,7 @@
   "librarySelected": "{count} selectate",
   "libraryDeleteNamed": "Ștergi {name}?",
   "libraryDeleteCount": "{count, plural, =1{Ștergi 1 fișier?} few{Ștergi {count} fișiere?} other{Ștergi {count} de fișiere?}}",
-  "libraryDeleteBody": "Fișierele sunt șterse de pe disc, nu mutate în coșul de gunoi.",
-  "libraryDeleted": "{count, plural, =1{Fișier șters.} few{{count} fișiere șterse.} other{{count} de fișiere șterse.}}",
+  "libraryDeleteBody": "Fișierele sunt mutate în coșul de gunoi. Le poți restaura de acolo.",
+  "libraryDeleted": "{count, plural, =1{Fișier mutat în coș.} few{{count} fișiere mutate în coș.} other{{count} de fișiere mutate în coș.}}",
   "undo": "Anulează"
 }

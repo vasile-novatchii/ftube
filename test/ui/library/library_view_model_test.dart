@@ -99,13 +99,13 @@ void main() {
       expect(names(), ['a.mp4', 'b.mp3', 'c.txt']);
       await vm().delete([item('b.mp3')]);
       vm().undoDelete();
-      verifyNever(() => env.files.delete(any()));
+      verifyNever(() => env.files.trash(any()));
     });
 
     test('a second delete carries out the pending one', () async {
       await vm().delete([item('a.mp4')]);
       await vm().delete([item('b.mp3')]);
-      verify(() => env.files.delete(p.join(downloads, 'a.mp4'))).called(1);
+      verify(() => env.files.trash([p.join(downloads, 'a.mp4')])).called(1);
       expect(state().items.map((i) => i.name), ['b.mp3', 'c.txt']);
       expect(names(), ['c.txt']);
     });
@@ -121,7 +121,7 @@ void main() {
     });
 
     test('a failed delete is reported and the list reloaded', () async {
-      when(() => env.files.delete(any())).thenThrow(const FileError('busy'));
+      when(() => env.files.trash(any())).thenThrow(const FileError('busy'));
       await vm().delete([item('a.mp4')]);
       await vm().delete([item('b.mp3')]);
       expect(notices.map((n) => n.runtimeType), [
@@ -132,11 +132,19 @@ void main() {
       expect(names(), ['a.mp4', 'c.txt']);
     });
 
+    test('a cancelled bin dialog brings the files back', () async {
+      when(() => env.files.trash(any())).thenAnswer((_) async => []);
+      await vm().delete([item('a.mp4')]);
+      await vm().delete([item('b.mp3')]);
+      expect(names(), ['a.mp4', 'c.txt']);
+      expect(notices.whereType<LibraryFailed>(), isEmpty);
+    });
+
     test('a pending delete is carried out on dispose', () async {
       await vm().delete([item('a.mp4')]);
       c.dispose();
       await pumpEventQueue();
-      verify(() => env.files.delete(p.join(downloads, 'a.mp4'))).called(1);
+      verify(() => env.files.trash([p.join(downloads, 'a.mp4')])).called(1);
     });
 
     test('renames and keeps the selection', () async {

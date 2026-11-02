@@ -44,8 +44,16 @@ class _LibraryViewState extends ConsumerState<LibraryView> {
     final l10n = context.l10n;
     final snackBar = switch (notice) {
       LibraryDeleted(:final count) => SnackBar(
-        content: Text(l10n.libraryDeleted(count)),
+        content: Row(
+          children: [
+            const UndoCountdown(duration: LibraryViewModel.undoWindow),
+            const SizedBox(width: 16),
+            Expanded(child: Text(l10n.libraryDeleted(count))),
+          ],
+        ),
         duration: LibraryViewModel.undoWindow,
+        // A SnackBar with an action stays until dismissed by default.
+        persist: false,
         action: SnackBarAction(label: l10n.undo, onPressed: _vm.undoDelete),
       ),
       LibraryConverted(:final name) => SnackBar(
@@ -484,4 +492,45 @@ class _Message extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// A ring that empties over [duration] around the seconds left, as in
+/// Telegram's undo bar (docs/spec-v0.2.md D-24).
+class UndoCountdown extends StatelessWidget {
+  const UndoCountdown({required this.duration, super.key});
+
+  final Duration duration;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onInverseSurface;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 1, end: 0),
+      duration: duration,
+      builder: (context, left, _) {
+        final seconds = (left * duration.inMilliseconds / 1000).ceil();
+        return SizedBox.square(
+          dimension: 28,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox.expand(
+                child: CircularProgressIndicator(
+                  value: left,
+                  strokeWidth: 2.5,
+                  color: color,
+                  backgroundColor: color.withValues(alpha: 0.2),
+                ),
+              ),
+              Text(
+                '$seconds',
+                key: const Key('library.undoSeconds'),
+                style: TextStyle(color: color, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }

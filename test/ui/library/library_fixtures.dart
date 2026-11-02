@@ -48,8 +48,10 @@ class Disk {
     when(
       () => _files.stat(any()),
     ).thenAnswer((i) async => items[i.positionalArguments.single as String]!);
-    when(() => _files.delete(any())).thenAnswer((i) async {
-      items.remove(i.positionalArguments.single as String);
+    when(() => _files.trash(any())).thenAnswer((i) async {
+      final paths = i.positionalArguments.single as List<String>;
+      paths.forEach(items.remove);
+      return paths;
     });
     when(() => _files.rename(any(), any())).thenAnswer((i) async {
       final [from as String, to as String] = i.positionalArguments;
