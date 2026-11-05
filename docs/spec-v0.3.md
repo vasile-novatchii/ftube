@@ -94,6 +94,7 @@ sequenceDiagram
   - The library ships Python 3, yt-dlp and QuickJS, and runs yt-dlp as a child process.
   - It adds `--js-runtimes quickjs:<path>`, `--ffmpeg-location <path>` and `--no-cache-dir` to every call.
   - Desktop doesn't change.
+  - The library ships no R8 rules. `android/app/proguard-rules.pro` keeps `com.yausername`, commons-compress's zip classes (they unpack Python on first launch by reflection) and Jackson (the updater), or the release build fails with "is not a concrete class".
 - D-32: The library's `ffmpeg` module is not used.
   - Its shared libraries are 4KB-aligned. On a 16KB-page device (the Android 15 emulator, newer Pixels) ffmpeg fails to link, and yt-dlp reports "ffmpeg is not installed".
   - Dropping it also saves about 36MB per ABI.
@@ -129,6 +130,7 @@ sequenceDiagram
   - `--restrict-filenames` is dropped, so spaces, case and Unicode stay. Characters that Windows, macOS, Android or FAT forbid (`/ \ : * ? " < > |`) become yt-dlp's look-alikes (`⧸ ⧹ ： ＊ ？ ＂ ＜ ＞ ｜`). Control characters, leading dots and trailing dots or spaces are dropped, Windows device names get a `_`, and names are cut to 200 UTF-8 bytes.
   - Desktop yt-dlp now writes only into the job temp folder as `media.<ext>` and prints `FTUBE_TITLE`. The service then moves the file into the download folder, like Android.
   - A taken name gets ` (2)`, ` (3)`... The name is reserved by creating it exclusively before the move, so an existing file is never replaced and two jobs with one title can't collide.
+  - Desktop passes `--encoding utf-8`. Without it yt-dlp on Windows writes the pipe in the ANSI code page and drops the characters it can't encode, so a Cyrillic or Arabic title would be lost.
   - This fixes desktop yt-dlp reusing a same-named file in the download folder: an MP3 after a video of a site without separate audio deleted the video, and a second download in another quality was skipped.
 
 ## 4. Testing

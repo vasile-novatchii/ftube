@@ -64,8 +64,26 @@ Everywhere:
 - [ ] Switch to each of the six languages: nothing is left in English, and Arabic lays out right to left (DoD-18).
 - [ ] A native speaker has reviewed the RU, ES, DE and AR texts (R-15).
 
+## v0.3 checks
+
+docs/spec-v0.3.md section DoD, on top of the checks above.
+
+Android, with the release APK (R8 is on, unlike debug builds), on a 16KB-page emulator and on an Android 12 device:
+
+- [ ] A 1080p YouTube video over 100MB downloads in full and plays with sound (DoD-20).
+- [ ] MP3 and OGG downloads play, and cancel stops the download and leaves no temp folder in the app cache (DoD-21).
+- [ ] Turning off the network mid-download fails the job with a network error within about 60s (DoD-22).
+- [ ] Settings shows the yt-dlp version, and Update yt-dlp updates it (DoD-23).
+
+Everywhere:
+
+- [ ] A link from another site yt-dlp supports (Vimeo, Dailymotion) downloads.
+- [ ] The file is named after the video title, with spaces and case kept, and `:` `|` `/` `?` shown as look-alikes (D-39).
+- [ ] Downloading the same video twice keeps both files, the second as ` (2)`, and never replaces a file.
+- [ ] Windows: a Cyrillic or Arabic title is named correctly.
+
 ## After the tag
 
 - [ ] The `Release` workflow is green. Read the `Smoke download` step on each OS; it may only warn when YouTube blocks the runner.
-- [ ] The release has the macOS `.zip`, Windows `.zip`, Linux `.tar.gz` and three Android APKs (`-arm64-v8a`, `-armeabi-v7a`, `-x86_64`, about 19-28MB each), and the job summaries show their sizes. The run also has an `android-symbols-*` artifact; download it before it expires (90 days) and keep it to read obfuscated crash traces with `flutter symbolize`. Note the desktop size cost of the unused FFmpegKit libraries (R-5).
+- [ ] The release has the macOS `.zip`, Windows `.zip`, Linux `.tar.gz` and three Android APKs (`-arm64-v8a`, `-armeabi-v7a`, `-x86_64`, about 39-47MB each since v0.3), and the job summaries show their sizes. The run also has an `android-symbols-*` artifact; download it before it expires (90 days) and keep it to read obfuscated crash traces with `flutter symbolize`. Note the desktop size cost of the unused FFmpegKit libraries (R-5).
 - [ ] Each archive contains `LICENSE` and `THIRD_PARTY_NOTICES.md`.

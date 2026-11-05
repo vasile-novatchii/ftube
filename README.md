@@ -3,7 +3,7 @@
 Download and convert media on macOS, Windows, Linux and Android.
 A Flutter port of [`ftube.sh`](https://github.com/vasile-novatchii/Linux-Features/blob/master/ftube.sh).
 
-> Status: v0.2.0, a UX release: fixed desktop window, Android multi-window, delete to the bin with Undo, clear app data, a new icon and Russian, Spanish, German and Arabic. See [docs/spec.md](docs/spec.md) and [docs/spec-v0.2.md](docs/spec-v0.2.md).
+> Status: v0.3.0: Android downloads run yt-dlp, so they no longer freeze and work with any site yt-dlp supports, and files keep the video title as their name. See [docs/spec.md](docs/spec.md), [docs/spec-v0.2.md](docs/spec-v0.2.md) and [docs/spec-v0.3.md](docs/spec-v0.3.md).
 
 ## Install
 

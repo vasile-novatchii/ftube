@@ -10,7 +10,10 @@ Dart package compiled into the app is shown in the app under
 | Component | License | Source |
 |---|---|---|
 | Flutter engine and framework | BSD-3-Clause | https://github.com/flutter/flutter |
-| youtube_explode_dart (Android downloads) | BSD-3-Clause | https://github.com/Hexer10/youtube_explode_dart |
+| youtubedl-android (Android downloads; runs yt-dlp) | GPL-3.0 | https://github.com/JunkFood02/youtubedl-android |
+| Python 3 (bundled by youtubedl-android) | PSF-2.0 | https://www.python.org |
+| QuickJS (bundled by youtubedl-android) | MIT | https://bellard.org/quickjs |
+| yt-dlp (bundled by youtubedl-android and updated by the app) | Unlicense | https://github.com/yt-dlp/yt-dlp |
 | ffmpeg_kit_flutter_new_audio and FFmpegKit audio libraries (Android conversion and muxing; also bundled, unused, on desktop) | LGPL-3.0 | https://github.com/sk3llo/ffmpeg_kit_flutter |
 | Riverpod | MIT | https://github.com/rrousselGit/riverpod |
 | freezed_annotation | MIT | https://github.com/rrousselGit/freezed |

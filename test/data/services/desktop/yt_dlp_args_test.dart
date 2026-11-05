@@ -40,6 +40,8 @@ void main() {
     expect(YtDlpArgs.common(ffmpegDir: '/bin', denoPath: '/bin/deno'), [
       '--ignore-config',
       '--no-playlist',
+      '--encoding',
+      'utf-8',
       '--ffmpeg-location',
       '/bin',
       '--js-runtimes',

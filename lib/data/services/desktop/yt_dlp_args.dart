@@ -46,10 +46,14 @@ abstract final class YtDlpArgs {
     return 'bv*[height<=$h]+ba/b[height<=$h]';
   }
 
-  /// Flags passed on every call, matching `ftube.sh`.
+  /// Flags passed on every call, matching `ftube.sh`. `--encoding utf-8`
+  /// keeps non-Latin titles on Windows, where yt-dlp otherwise writes the
+  /// pipe in the ANSI code page and drops what it cannot encode.
   static List<String> common({required String ffmpegDir, String? denoPath}) => [
     '--ignore-config',
     '--no-playlist',
+    '--encoding',
+    'utf-8',
     '--ffmpeg-location',
     ffmpegDir,
     if (denoPath != null) ...['--js-runtimes', 'deno:$denoPath'],
