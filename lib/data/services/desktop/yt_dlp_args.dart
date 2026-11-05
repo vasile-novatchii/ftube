@@ -1,6 +1,6 @@
 import '../../../domain/models/models.dart';
 
-/// Builds yt-dlp command lines for the desktop service.
+/// Builds yt-dlp command lines for the desktop and Android services.
 abstract final class YtDlpArgs {
   /// Prefix of the per-update line written by the download template.
   static const progressTag = 'FTUBE';
@@ -10,6 +10,9 @@ abstract final class YtDlpArgs {
 
   /// Prefix of the line with the final file path.
   static const fileTag = 'FTUBE_FILE';
+
+  /// Prefix of the line with the video title.
+  static const titleTag = 'FTUBE_TITLE';
 
   static const _downloadTemplate =
       'download:$progressTag'
@@ -47,7 +50,6 @@ abstract final class YtDlpArgs {
   static List<String> common({required String ffmpegDir, String? denoPath}) => [
     '--ignore-config',
     '--no-playlist',
-    '--restrict-filenames',
     '--ffmpeg-location',
     ffmpegDir,
     if (denoPath != null) ...['--js-runtimes', 'deno:$denoPath'],
@@ -60,7 +62,9 @@ abstract final class YtDlpArgs {
     String? denoPath,
   }) => [...common(ffmpegDir: ffmpegDir, denoPath: denoPath), '-J', '--', url];
 
-  /// A download into [outDir], with intermediate files in [tempDir].
+  /// A download into [tempDir] as `media.<ext>`. The service then moves
+  /// it to `outDir` under the title (spec-v0.3 D-39), so yt-dlp never sees
+  /// or replaces files already there.
   static List<String> download(
     DownloadRequest req, {
     required String ffmpegDir,
@@ -83,11 +87,9 @@ abstract final class YtDlpArgs {
         '0',
       ],
       '-o',
-      '%(title)s.%(ext)s',
+      'media.%(ext)s',
       '-P',
-      req.outDir.path,
-      '-P',
-      'temp:$tempDir',
+      tempDir,
       '--newline',
       '--progress',
       '--no-simulate',
@@ -96,9 +98,47 @@ abstract final class YtDlpArgs {
       '--progress-template',
       _postprocessTemplate,
       '--print',
+      'video:$titleTag|%(title)s',
+      '--print',
       'after_move:$fileTag|%(filepath)s',
       '--',
       req.url,
     ];
   }
+
+  /// `yt-dlp -J` on Android. youtubedl-android adds `--ffmpeg-location` and
+  /// `--js-runtimes` itself (spec-v0.3 D-31).
+  static List<String> androidInfo(String url) => [
+    '--ignore-config',
+    '--no-playlist',
+    '-J',
+    '--',
+    url,
+  ];
+
+  /// A download on Android into [tempDir] (spec-v0.3 D-34). yt-dlp has no
+  /// working ffmpeg there, so it leaves video and audio as separate
+  /// `media.f<id>.<ext>` files; the service muxes or converts them.
+  static List<String> androidDownload(
+    DownloadRequest req, {
+    required String tempDir,
+  }) => [
+    '--ignore-config',
+    '--no-playlist',
+    '-f',
+    formatSelector(req.preset, formatId: req.formatId),
+    '-o',
+    'media.%(ext)s',
+    '-P',
+    tempDir,
+    '--newline',
+    '--progress',
+    '--no-simulate',
+    '--progress-template',
+    _downloadTemplate,
+    '--print',
+    'video:$titleTag|%(title)s',
+    '--',
+    req.url,
+  ];
 }

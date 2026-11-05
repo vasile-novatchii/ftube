@@ -9,6 +9,7 @@ import '../../../domain/models/models.dart';
 import '../binary_service.dart';
 import '../ffmpeg_args.dart';
 import '../media_service.dart';
+import '../output_name.dart';
 import '../process_runner.dart';
 import '../progress_weights.dart';
 import 'yt_dlp_args.dart';
@@ -116,9 +117,9 @@ class DesktopMediaService implements MediaService {
     final temp = Directory(p.join(tempRoot.path, req.jobId));
     try {
       await temp.create(recursive: true);
-      await req.outDir.create(recursive: true);
       final audioOnly = req.preset.isAudioOnly;
       String? outputPath;
+      String? title;
 
       void onLine(String line) {
         switch (YtDlpOutput.parseLine(line)) {
@@ -154,6 +155,8 @@ class DesktopMediaService implements MediaService {
             );
           case YtDlpFileLine(:final path):
             outputPath = path;
+          case YtDlpTitleLine(title: final t):
+            title = t;
           case _:
         }
       }
@@ -174,11 +177,18 @@ class DesktopMediaService implements MediaService {
       );
       if (job.cancelled) throw const Cancelled();
       if (code != 0) throw YtDlpOutput.mapError(code, stderr);
+      final result = _result(outputPath, temp);
+      await req.outDir.create(recursive: true);
+      final dst = await OutputName.place(
+        result,
+        req.outDir,
+        OutputName.fromTitle(title ?? ''),
+      );
       return JobProgress(
         jobId: req.jobId,
         phase: JobPhase.finished,
         fraction: 1,
-        outputPath: outputPath,
+        outputPath: dst.path,
       );
     } finally {
       await _deleteQuietly(temp);
@@ -293,6 +303,21 @@ class DesktopMediaService implements MediaService {
       // Optional: YouTube still works without it, with fewer formats.
     }
     return (ytDlp: ytDlp.path, ffmpegDir: ffmpeg.parent.path, deno: deno);
+  }
+
+  /// The finished file: the path yt-dlp printed, else the only finished
+  /// `media.*` in [temp].
+  static File _result(String? printed, Directory temp) {
+    if (printed != null && File(printed).existsSync()) return File(printed);
+    final files = [
+      for (final f in temp.listSync().whereType<File>())
+        if (p.basename(f.path).startsWith('media.') &&
+            !f.path.endsWith('.part') &&
+            !f.path.endsWith('.ytdl'))
+          f,
+    ];
+    if (files.length == 1) return files.single;
+    throw Unexpected('yt-dlp left ${files.length} files and no final path');
   }
 
   static void _checkUrl(String url) {

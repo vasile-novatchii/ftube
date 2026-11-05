@@ -1,31 +1,33 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
 import '../../../domain/exceptions/ftube_exception.dart';
 import '../../../domain/models/models.dart';
+import '../desktop/yt_dlp_args.dart';
+import '../desktop/yt_dlp_output.dart';
 import '../ffmpeg_args.dart';
 import '../media_service.dart';
+import '../output_name.dart';
 import '../progress_weights.dart';
 import 'ffmpeg_kit_runner.dart';
 import 'storage_permission_service.dart';
-import 'stream_picker.dart';
-import 'youtube_source.dart';
+import 'yt_dlp_bridge.dart';
 
-/// [MediaService] for Android: `youtube_explode_dart` downloads the streams
-/// and `ffmpeg_kit` muxes and converts them (spec D-5). YouTube only.
+/// [MediaService] for Android: yt-dlp (through youtubedl-android) downloads
+/// the streams and `ffmpeg_kit` muxes and converts them (spec-v0.3 D-31,
+/// D-32).
 class AndroidMediaService implements MediaService {
   AndroidMediaService({
-    required this._source,
+    required this._ytDlp,
     required this._ffmpeg,
     required this.tempRoot,
     this._storage,
-    this.progressInterval = const Duration(milliseconds: 250),
+    this.idleTimeout = const Duration(seconds: 60),
   });
 
-  final YoutubeSource _source;
+  final YtDlpBridge _ytDlp;
   final FfmpegRunner _ffmpeg;
 
   /// Checks access before writing and announces new files. Null in tests
@@ -36,33 +38,26 @@ class AndroidMediaService implements MediaService {
   /// deleted when the job ends, whatever the outcome.
   final Directory tempRoot;
 
-  /// Minimum time between two byte-progress updates of one stream.
-  final Duration progressInterval;
+  /// A yt-dlp run that prints nothing for this long is stopped (D-37).
+  final Duration idleTimeout;
 
   final _jobs = <String, _Job>{};
 
+  /// The yt-dlp update of this launch (D-36). Reset when it fails, so the
+  /// next call tries again.
+  Future<void>? _ready;
+  var _infoRuns = 0;
+
   @override
   Future<MediaInfo> fetchInfo(String url) async {
-    final id = _videoId(url);
-    final YtVideo video;
-    final List<YtStream> streams;
-    try {
-      (video, streams) = await (_source.video(id), _source.streams(id)).wait;
-    } on ParallelWaitError<
-      (YtVideo?, List<YtStream>?),
-      (AsyncError?, AsyncError?)
-    > catch (e) {
-      final err = e.errors.$1 ?? e.errors.$2!;
-      Error.throwWithStackTrace(err.error, err.stackTrace);
-    }
-    return MediaInfo(
-      url: url.trim(),
-      title: video.title,
-      uploader: video.author,
-      duration: video.duration,
-      thumbnailUrl: video.thumbnailUrl,
-      formats: StreamPicker.formats(streams),
-    );
+    final trimmed = url.trim();
+    _checkUrl(trimmed);
+    await _ensureReady();
+    final out = StringBuffer();
+    final job = _Job('info-${_infoRuns++}');
+    final r = await _runYtDlp(job, YtDlpArgs.androidInfo(trimmed), out.writeln);
+    if (r.exitCode != 0) throw YtDlpOutput.mapError(r.exitCode, r.stderr);
+    return YtDlpOutput.parseInfo(out.toString(), url: trimmed);
   }
 
   @override
@@ -82,7 +77,7 @@ class AndroidMediaService implements MediaService {
     final job = _jobs[jobId];
     if (job == null) return;
     job.cancelled = true;
-    job.stopTransfer?.call();
+    if (job.ytDlpRunning) await _ytDlp.cancel(job.id);
     await job.ffmpeg?.cancel();
   }
 
@@ -127,106 +122,113 @@ class AndroidMediaService implements MediaService {
     _Job job,
     void Function(JobProgress) emit,
   ) async {
-    final id = _videoId(req.url);
+    _checkUrl(req.url.trim());
     await _storage?.ensureGranted();
-    final streams = await _source.streams(id);
-    final selection = StreamPicker.pick(
-      streams,
-      req.preset,
-      formatId: req.formatId,
-    );
-    final video = await _source.video(id);
+    await _ensureReady();
     _checkCancelled(job);
 
     final temp = Directory(p.join(tempRoot.path, req.jobId));
     try {
       await temp.create(recursive: true);
-      final audioOnly = selection.video == null;
-      File? videoFile;
-      File? audioFile;
+      final audioOnly = req.preset.isAudioOnly;
+      String? title;
+      final parts = <_Part>[];
 
-      if (selection.video case final v?) {
-        videoFile = File(p.join(temp.path, 'video.${v.extension}'));
-        await _transfer(
-          job,
-          v,
-          videoFile,
-          (got, total, speed, eta) => emit(
-            _bytesProgress(
-              req.jobId,
-              JobPhase.downloadingVideo,
-              got,
-              total,
-              speed,
-              eta,
-              audioOnly: false,
-            ),
-          ),
-        );
-      }
-
-      if (selection.audio case final picked?) {
-        // A second download from the same manifest may be refused, so the
-        // audio stream comes from a fresh one when a video came first.
-        var a = picked;
-        if (videoFile != null) {
-          final fresh = await _source.streams(id);
-          a = fresh.firstWhere((s) => s.tag == a.tag, orElse: () => a);
+      void onLine(String line) {
+        switch (YtDlpOutput.parseLine(line)) {
+          case YtDlpTitleLine(title: final t):
+            title = t;
+          case YtDlpDestinationLine(:final path):
+            parts.add(
+              _Part(p.isAbsolute(path) ? path : p.join(temp.path, path)),
+            );
+          case final YtDlpDownloadLine l:
+            if (parts.isNotEmpty) parts.last.isAudio ??= l.isAudio;
+            final phase = l.isAudio
+                ? JobPhase.downloadingAudio
+                : JobPhase.downloadingVideo;
+            final f = l.fraction;
+            emit(
+              JobProgress(
+                jobId: req.jobId,
+                phase: phase,
+                fraction: f == null
+                    ? null
+                    : ProgressWeights.overall(phase, f, audioOnly: audioOnly),
+                downloadedBytes: l.downloadedBytes,
+                totalBytes: l.totalBytes,
+                speedBps: l.speedBps,
+                eta: l.eta,
+              ),
+            );
+          case _:
         }
-        audioFile = File(p.join(temp.path, 'audio.${a.extension}'));
-        await _transfer(
-          job,
-          a,
-          audioFile,
-          (got, total, speed, eta) => emit(
-            _bytesProgress(
-              req.jobId,
-              JobPhase.downloadingAudio,
-              got,
-              total,
-              speed,
-              eta,
-              audioOnly: audioOnly,
-            ),
-          ),
-        );
       }
 
+      final r = await _runYtDlp(
+        job,
+        YtDlpArgs.androidDownload(req, tempDir: temp.path),
+        onLine,
+      );
+      _checkCancelled(job);
+      if (r.exitCode != 0) throw YtDlpOutput.mapError(r.exitCode, r.stderr);
+
+      final files = _downloadedParts(parts, temp);
+      if (files.isEmpty) {
+        throw ProcessFailed.fromStderr(0, 'yt-dlp wrote no file\n${r.stderr}');
+      }
       final File result;
-      if (videoFile != null && audioFile != null) {
+      if (files.length >= 2) {
+        // The selector asks for video first, then audio.
+        final video = files.firstWhere(
+          (f) => f.isAudio != true,
+          orElse: () => files[0],
+        );
+        final audio = files.firstWhere(
+          (f) => !identical(f, video),
+          orElse: () => files[1],
+        );
         emit(_phaseStart(req.jobId, JobPhase.merging, audioOnly: false));
-        result = File(p.join(temp.path, 'out.${selection.video!.container}'));
+        final ext = muxExtension(
+          p.extension(video.path),
+          p.extension(audio.path),
+        );
+        result = File(p.join(temp.path, 'out$ext'));
         await _runFfmpeg(
           job,
-          FfmpegArgs.mux(videoFile.path, audioFile.path, result.path),
+          FfmpegArgs.mux(video.path, audio.path, result.path),
         );
       } else if (req.preset.audioTarget case final target?) {
+        final src = files.single.path;
         emit(_phaseStart(req.jobId, JobPhase.converting, audioOnly: true));
+        Duration? duration;
+        try {
+          duration = await _ffmpeg.probeDuration(src);
+        } on Object {
+          // Progress stays at the phase start without a duration.
+        }
         result = File(p.join(temp.path, 'out.${target.extension}'));
         await _runFfmpeg(
           job,
-          FfmpegArgs.convert(
-            audioFile!.path,
-            target,
-            result.path,
-            pipeProgress: false,
-          ),
+          FfmpegArgs.convert(src, target, result.path, pipeProgress: false),
           onTime: _onConvertTime(
             req.jobId,
-            video.duration,
+            duration,
             emit,
             conversionOnly: false,
           ),
         );
       } else {
-        result = (videoFile ?? audioFile)!;
+        result = File(files.single.path);
       }
 
       _checkCancelled(job);
       await req.outDir.create(recursive: true);
-      final ext = p.extension(result.path);
-      final dst = _freePath(req.outDir, safeFileName(video.title), ext);
-      await _move(result, dst);
+      final dst = await OutputName.place(
+        result,
+        req.outDir,
+        OutputName.fromTitle(title ?? ''),
+      );
       await _storage?.scanFile(dst.path);
       return JobProgress(
         jobId: req.jobId,
@@ -236,6 +238,81 @@ class AndroidMediaService implements MediaService {
       );
     } finally {
       await _deleteQuietly(temp);
+    }
+  }
+
+  /// The parts yt-dlp announced that exist, else every finished file in
+  /// [temp] (yt-dlp may skip the Destination line).
+  static List<_Part> _downloadedParts(List<_Part> announced, Directory temp) {
+    final existing = [
+      for (final part in announced)
+        if (File(part.path).existsSync()) part,
+    ];
+    if (existing.isNotEmpty) return existing;
+    const audioExts = {'.m4a', '.opus', '.mp3', '.aac', '.ogg'};
+    return [
+      for (final f in temp.listSync().whereType<File>())
+        if (!f.path.endsWith('.part') && !f.path.endsWith('.ytdl'))
+          _Part(f.path)
+            ..isAudio = audioExts.contains(p.extension(f.path).toLowerCase())
+                ? true
+                : null,
+    ];
+  }
+
+  /// The container yt-dlp's merger would pick (D-35): `.mp4` for MP4 video
+  /// with M4A/MP4 audio, `.webm` for WebM with WebM, else `.mkv`.
+  static String muxExtension(String videoExt, String audioExt) {
+    final v = videoExt.toLowerCase();
+    final a = audioExt.toLowerCase();
+    if (v == '.mp4' && (a == '.m4a' || a == '.mp4')) return '.mp4';
+    if (v == '.webm' && a == '.webm') return '.webm';
+    return '.mkv';
+  }
+
+  /// Updates yt-dlp once per launch before its first use (D-36). A failed
+  /// update keeps the installed version and is tried again next time.
+  Future<void> _ensureReady() => _ready ??= _ytDlp.update().then(
+    (_) {},
+    onError: (Object _) => _ready = null,
+  );
+
+  /// Runs yt-dlp for [job], stopping it after [idleTimeout] without output.
+  Future<YtDlpResult> _runYtDlp(
+    _Job job,
+    List<String> args,
+    void Function(String line) onLine,
+  ) async {
+    var stalled = false;
+    Timer? idle;
+    void arm() {
+      idle?.cancel();
+      idle = Timer(idleTimeout, () {
+        stalled = true;
+        unawaited(_ytDlp.cancel(job.id));
+      });
+    }
+
+    job.ytDlpRunning = true;
+    arm();
+    try {
+      final r = await _ytDlp.run(
+        job.id,
+        args,
+        onLine: (line) {
+          arm();
+          onLine(line);
+        },
+      );
+      if (job.cancelled) throw const Cancelled();
+      if (stalled) {
+        throw Network('yt-dlp printed nothing for ${idleTimeout.inSeconds}s');
+      }
+      if (r.cancelled) throw const Cancelled();
+      return r;
+    } finally {
+      idle?.cancel();
+      job.ytDlpRunning = false;
     }
   }
 
@@ -277,76 +354,6 @@ class AndroidMediaService implements MediaService {
     }
   }
 
-  /// Writes [stream]'s bytes to [dst], reporting at most every
-  /// [progressInterval] and once at the end.
-  Future<void> _transfer(
-    _Job job,
-    YtStream stream,
-    File dst,
-    void Function(int got, int? total, double? speed, Duration? eta) onBytes,
-  ) async {
-    _checkCancelled(job);
-    final total = stream.sizeBytes;
-    final clock = Stopwatch()..start();
-    var got = 0;
-    var lastReport = Duration.zero;
-
-    void report() {
-      final elapsed = clock.elapsed;
-      final seconds = elapsed.inMicroseconds / 1e6;
-      final speed = seconds > 0 ? got / seconds : null;
-      Duration? eta;
-      if (speed != null && speed > 0 && total != null && total >= got) {
-        eta = Duration(seconds: ((total - got) / speed).round());
-      }
-      onBytes(got, total, speed, eta);
-      lastReport = elapsed;
-    }
-
-    final file = await dst.open(mode: FileMode.writeOnly);
-    final finished = Completer<void>();
-    late final StreamSubscription<List<int>> sub;
-    try {
-      sub = _source
-          .open(stream)
-          .listen(
-            (chunk) async {
-              // Pause while writing, so a fast network cannot fill memory.
-              sub.pause();
-              try {
-                await file.writeFrom(
-                  chunk is Uint8List ? chunk : Uint8List.fromList(chunk),
-                );
-                got += chunk.length;
-                if (clock.elapsed - lastReport >= progressInterval) report();
-              } on Object catch (e, st) {
-                if (!finished.isCompleted) finished.completeError(e, st);
-                await sub.cancel();
-                return;
-              }
-              sub.resume();
-            },
-            onError: (Object e, StackTrace st) {
-              if (!finished.isCompleted) finished.completeError(e, st);
-            },
-            onDone: () {
-              if (!finished.isCompleted) finished.complete();
-            },
-            cancelOnError: true,
-          );
-      job.stopTransfer = () {
-        unawaited(sub.cancel());
-        if (!finished.isCompleted) finished.completeError(const Cancelled());
-      };
-      await finished.future;
-      report();
-    } finally {
-      job.stopTransfer = null;
-      await file.close();
-    }
-    _checkCancelled(job);
-  }
-
   Future<void> _runFfmpeg(
     _Job job,
     List<String> args, {
@@ -386,26 +393,6 @@ class AndroidMediaService implements MediaService {
     );
   };
 
-  static JobProgress _bytesProgress(
-    String jobId,
-    JobPhase phase,
-    int got,
-    int? total,
-    double? speed,
-    Duration? eta, {
-    required bool audioOnly,
-  }) => JobProgress(
-    jobId: jobId,
-    phase: phase,
-    fraction: total == null || total <= 0
-        ? null
-        : ProgressWeights.overall(phase, got / total, audioOnly: audioOnly),
-    downloadedBytes: got,
-    totalBytes: total,
-    speedBps: speed,
-    eta: eta,
-  );
-
   static JobProgress _phaseStart(
     String jobId,
     JobPhase phase, {
@@ -416,50 +403,17 @@ class AndroidMediaService implements MediaService {
     fraction: ProgressWeights.overall(phase, 0, audioOnly: audioOnly),
   );
 
-  String _videoId(String url) {
-    final uri = Uri.tryParse(url.trim());
+  static void _checkUrl(String url) {
+    final uri = Uri.tryParse(url);
     final ok =
         uri != null &&
         (uri.isScheme('http') || uri.isScheme('https')) &&
         uri.host.isNotEmpty;
     if (!ok) throw InvalidUrl(url);
-    return _source.parseVideoId(url.trim()) ??
-        (throw Unsupported('only YouTube videos are supported: $url'));
   }
 
   static void _checkCancelled(_Job job) {
     if (job.cancelled) throw const Cancelled();
-  }
-
-  /// [title] made safe for any file system, like yt-dlp's
-  /// `--restrict-filenames`: ASCII letters, digits, `.`, `_` and `-`.
-  static String safeFileName(String title) {
-    final cleaned = title
-        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
-        .replaceAll(RegExp('_{2,}'), '_')
-        .replaceAll(RegExp(r'^[._-]+|[._-]+$'), '');
-    final short = cleaned.length > 150 ? cleaned.substring(0, 150) : cleaned;
-    return short.isEmpty ? 'video' : short;
-  }
-
-  /// `<dir>/<name><ext>`, or `<name>_2<ext>`, `<name>_3<ext>`... when taken.
-  static File _freePath(Directory dir, String name, String ext) {
-    var file = File(p.join(dir.path, '$name$ext'));
-    for (var n = 2; file.existsSync(); n++) {
-      file = File(p.join(dir.path, '${name}_$n$ext'));
-    }
-    return file;
-  }
-
-  /// Renames [src] to [dst], copying when they are on different volumes
-  /// (app cache to shared storage).
-  static Future<void> _move(File src, File dst) async {
-    try {
-      await src.rename(dst.path);
-    } on FileSystemException {
-      await src.copy(dst.path);
-      await _deleteQuietly(src);
-    }
   }
 
   static Future<void> _deleteQuietly(FileSystemEntity entity) async {
@@ -477,9 +431,19 @@ class _Job {
   final String id;
   bool cancelled = false;
 
-  /// Stops the byte transfer in progress, if any.
-  void Function()? stopTransfer;
+  /// yt-dlp is running for this job.
+  bool ytDlpRunning = false;
 
   /// The ffmpeg session in progress, if any.
   FfmpegTask? ffmpeg;
+}
+
+/// One file yt-dlp wrote.
+class _Part {
+  _Part(this.path);
+
+  final String path;
+
+  /// From the first progress line after the file started; null if none.
+  bool? isAudio;
 }

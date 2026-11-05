@@ -19,7 +19,7 @@ void main() {
   late Directory root;
   late Directory out;
   late Directory temp;
-  late FakeYoutubeSource source;
+  late FakeYtDlpBridge ytDlp;
   late FakeFfmpegRunner ffmpeg;
   late MockStorage storage;
   late AndroidMediaService service;
@@ -28,25 +28,16 @@ void main() {
     root = Directory.systemTemp.createTempSync('ftube_ams_test');
     out = Directory(p.join(root.path, 'Download', 'Ftube'));
     temp = Directory(p.join(root.path, 'cache'));
-    source = FakeYoutubeSource(
-      streamList: [
-        muxed(18, 'mp4', 360),
-        videoOnly(137, 'mp4', 1080, size: 2000),
-        videoOnly(248, 'webm', 1080),
-        audioOnly(140, 'mp4', 128000, size: 500),
-        audioOnly(251, 'webm', 160000, size: 600),
-      ],
-    );
+    ytDlp = FakeYtDlpBridge();
     ffmpeg = FakeFfmpegRunner();
     storage = MockStorage();
     when(() => storage.ensureGranted()).thenAnswer((_) async {});
     when(() => storage.scanFile(any())).thenAnswer((_) async {});
     service = AndroidMediaService(
-      source: source,
+      ytDlp: ytDlp,
       ffmpeg: ffmpeg,
       tempRoot: temp,
       storage: storage,
-      progressInterval: Duration.zero,
     );
   });
 
@@ -67,38 +58,52 @@ void main() {
   bool tempIsEmpty() =>
       !temp.existsSync() || temp.listSync(recursive: true).isEmpty;
 
+  Future<Object?> errorOf(Stream<JobProgress> s) =>
+      s.drain<void>().then<Object?>((_) => null, onError: (Object e) => e);
+
   group('fetchInfo', () {
-    test('rejects invalid URLs', () async {
+    test('rejects invalid URLs without running yt-dlp', () async {
       for (final u in ['', 'not a url', 'ftp://x.test/a', 'https://']) {
         await expectLater(service.fetchInfo(u), throwsA(isA<InvalidUrl>()));
       }
-      expect(source.manifestCalls, 0);
+      expect(ytDlp.runs, isEmpty);
     });
 
-    test('rejects URLs that are not YouTube videos', () async {
+    test('parses yt-dlp -J for any site', () async {
+      final info = await service.fetchInfo(' https://vimeo.com/1 ');
+      expect(info.url, 'https://vimeo.com/1');
+      expect(info.title, 'Big Buck Bunny');
+      expect(info.uploader, 'Blender');
+      expect(info.duration, const Duration(seconds: 10));
+      expect(info.formats.map((f) => f.id), ['18', '140']);
+      expect(ytDlp.runs.single, containsAllInOrder(['-J', '--']));
+      expect(ytDlp.runs.single.last, 'https://vimeo.com/1');
+    });
+
+    test('maps a failed run', () async {
+      ytDlp
+        ..exitCode = 1
+        ..stderr = 'ERROR: Unsupported URL: https://x.test';
       await expectLater(
-        service.fetchInfo('https://vimeo.com/1'),
+        service.fetchInfo('https://x.test'),
         throwsA(isA<Unsupported>()),
       );
     });
 
-    test('maps the video and its formats', () async {
-      final info = await service.fetchInfo(' $url ');
-      expect(info.url, url);
-      expect(info.title, 'Big Buck Bunny: 60fps 4K!');
-      expect(info.uploader, 'Blender');
-      expect(info.duration, const Duration(seconds: 10));
-      expect(info.thumbnailUrl, 'https://img.test/t.jpg');
-      expect(info.formats.map((f) => f.id), ['18', '137', '248', '251', '140']);
+    test('updates yt-dlp once per launch, before the first run', () async {
+      await service.fetchInfo(url);
+      await service.download(request(QualityPreset.best)).drain<void>();
+      await service.fetchInfo(url);
+      expect(ytDlp.updateCalls, 1);
     });
 
-    test('passes on errors from either request', () async {
-      source.streamsError = const Network('offline');
-      await expectLater(service.fetchInfo(url), throwsA(isA<Network>()));
-      source
-        ..streamsError = null
-        ..videoError = const Unsupported('private');
-      await expectLater(service.fetchInfo(url), throwsA(isA<Unsupported>()));
+    test('a failed update is ignored and tried again next time', () async {
+      ytDlp.updateError = const Network('offline');
+      await service.fetchInfo(url);
+      ytDlp.updateError = null;
+      await service.fetchInfo(url);
+      await service.fetchInfo(url);
+      expect(ytDlp.updateCalls, 2);
     });
   });
 
@@ -122,34 +127,51 @@ void main() {
       );
       expect(lastVideo.fraction, closeTo(0.8, 1e-9));
       expect(lastVideo.downloadedBytes, 2000);
-      expect(lastVideo.totalBytes, 2000);
-      expect(lastVideo.speedBps, isNotNull);
       expect(
         events.lastWhere((e) => e.phase == JobPhase.downloadingAudio).fraction,
         closeTo(0.95, 1e-9),
       );
 
-      final dst = p.join(out.path, 'Big_Buck_Bunny_60fps_4K.mp4');
+      final dst = p.join(out.path, 'Big Buck Bunny： 60fps 4K!.mp4');
       expect(events.last.outputPath, dst);
       expect(File(dst).readAsStringSync(), 'ffmpeg output');
-      expect(source.opened, [137, 140]);
-      // A fresh manifest for the second stream.
-      expect(source.manifestCalls, 2);
+      final args = ytDlp.runs.single;
+      expect(
+        args,
+        containsAllInOrder(['-f', 'bv*[height<=1080]+ba/b[height<=1080]']),
+      );
+      expect(args, isNot(contains('-x')));
       final mux = ffmpeg.calls.single;
       expect(mux, containsAllInOrder(['-c', 'copy']));
-      expect(p.basename(mux[mux.indexOf('-i') + 1]), 'video.mp4');
-      expect(p.basename(mux[mux.lastIndexOf('-i') + 1]), 'audio.m4a');
+      expect(p.basename(mux[mux.indexOf('-i') + 1]), 'media.f137.mp4');
+      expect(p.basename(mux[mux.lastIndexOf('-i') + 1]), 'media.f140.m4a');
       expect(tempIsEmpty(), isTrue);
       verify(() => storage.scanFile(dst)).called(1);
     });
 
-    test('audio presets convert the best audio stream', () async {
+    test('WebM video with M4A audio muxes into MKV', () async {
+      ytDlp.parts = const [
+        FakePart('248', 'webm'),
+        FakePart('140', 'm4a', audio: true),
+      ];
+      final last = await service.download(request(QualityPreset.best)).last;
+      expect(last.outputPath, endsWith('Big Buck Bunny： 60fps 4K!.mkv'));
+    });
+
+    test('finds the parts without Destination lines', () async {
+      ytDlp.announce = false;
+      final last = await service.download(request(QualityPreset.best)).last;
+      expect(last.outputPath, endsWith('.mp4'));
+      expect(ffmpeg.calls.single, contains('-c'));
+    });
+
+    test('audio presets convert the downloaded audio', () async {
+      ytDlp.parts = const [FakePart('251', 'webm', audio: true, size: 600)];
       final events = await service
           .download(request(QualityPreset.audioOgg))
           .toList();
 
-      expect(source.opened, [251]);
-      expect(source.manifestCalls, 1);
+      expect(ytDlp.runs.single, containsAllInOrder(['-f', 'ba/b']));
       final args = ffmpeg.calls.single;
       expect(args, containsAllInOrder(['-acodec', 'libvorbis']));
       expect(args, isNot(contains('-progress')));
@@ -158,37 +180,38 @@ void main() {
         closeTo(0.9, 1e-9),
         closeTo(0.95, 1e-9),
       ]);
-      expect(
-        events.lastWhere((e) => e.phase == JobPhase.downloadingAudio).fraction,
-        closeTo(0.9, 1e-9),
-      );
-      expect(events.last.outputPath, endsWith('Big_Buck_Bunny_60fps_4K.ogg'));
+      expect(events.last.outputPath, endsWith('Big Buck Bunny： 60fps 4K!.ogg'));
       expect(tempIsEmpty(), isTrue);
     });
 
-    test('custom audio-only and muxed formats skip ffmpeg', () async {
-      final a = await service
-          .download(request(QualityPreset.custom, formatId: '140'))
+    test('a single non-audio file is moved without ffmpeg', () async {
+      ytDlp.parts = const [FakePart('18', 'mp4')];
+      final last = await service
+          .download(request(QualityPreset.custom, formatId: '18'))
           .last;
-      expect(a.outputPath, endsWith('.m4a'));
-      final m = await service
-          .download(request(QualityPreset.custom, formatId: '18', jobId: 'j2'))
-          .last;
-      expect(m.outputPath, endsWith('.mp4'));
-      expect(File(m.outputPath!).lengthSync(), 1000);
+      expect(last.outputPath, endsWith('.mp4'));
+      expect(File(last.outputPath!).lengthSync(), 1000);
       expect(ffmpeg.calls, isEmpty);
+    });
+
+    test('names the file "video" when yt-dlp prints no title', () async {
+      ytDlp
+        ..title = ''
+        ..parts = const [FakePart('18', 'mp4')];
+      final last = await service.download(request(QualityPreset.best)).last;
+      expect(p.basename(last.outputPath!), 'video.mp4');
     });
 
     test('never overwrites an existing file', () async {
       out.createSync(recursive: true);
-      File(p.join(out.path, 'Big_Buck_Bunny_60fps_4K.mp4'))
+      File(p.join(out.path, 'Big Buck Bunny： 60fps 4K!.mp4'))
           .writeAsStringSync('old');
 
       final last = await service.download(request(QualityPreset.best)).last;
 
-      expect(last.outputPath, endsWith('Big_Buck_Bunny_60fps_4K_2.mp4'));
+      expect(last.outputPath, endsWith('Big Buck Bunny： 60fps 4K! (2).mp4'));
       expect(
-        File(p.join(out.path, 'Big_Buck_Bunny_60fps_4K.mp4'))
+        File(p.join(out.path, 'Big Buck Bunny： 60fps 4K!.mp4'))
             .readAsStringSync(),
         'old',
       );
@@ -217,23 +240,27 @@ void main() {
         service.download(request(QualityPreset.best)),
         emitsError(isA<StoragePermission>()),
       );
-      expect(source.manifestCalls, 0);
+      expect(ytDlp.runs, isEmpty);
     });
 
-    test('reports Unsupported when no stream fits', () async {
-      source.streamList = [audioOnly(140, 'mp4', 1)];
-      await expectLater(
-        service.download(request(QualityPreset.p720)),
-        emitsError(isA<Unsupported>()),
-      );
+    test('a failed yt-dlp run is mapped and leaves no files', () async {
+      ytDlp
+        ..exitCode = 1
+        ..stderr = 'ERROR: unable to download video data: Connection reset';
+      final err = await errorOf(service.download(request(QualityPreset.best)));
+      expect(err, isA<Network>());
+      expect(tempIsEmpty(), isTrue);
+    });
+
+    test('a run that writes no file is ProcessFailed', () async {
+      ytDlp.parts = const [];
+      final err = await errorOf(service.download(request(QualityPreset.best)));
+      expect(err, isA<ProcessFailed>());
     });
 
     test('a failed mux is ProcessFailed and leaves no files', () async {
       ffmpeg.returnCode = 1;
-      final err = await service
-          .download(request(QualityPreset.best))
-          .drain<void>()
-          .then<Object?>((_) => null, onError: (Object e) => e);
+      final err = await errorOf(service.download(request(QualityPreset.best)));
 
       expect(err, isA<ProcessFailed>());
       expect((err! as ProcessFailed).stderrTail, 'ffmpeg log\nlast line');
@@ -241,30 +268,33 @@ void main() {
       expect(out.existsSync() && out.listSync().isNotEmpty, isFalse);
     });
 
-    test('a stream error ends the job and cleans up', () async {
-      source.failAfterFirstChunk[137] = const Network('reset');
-      await expectLater(
-        service.download(request(QualityPreset.best)),
-        emitsThrough(emitsError(isA<Network>())),
+    test('a run with no output for idleTimeout fails with Network', () async {
+      service = AndroidMediaService(
+        ytDlp: ytDlp,
+        ffmpeg: ffmpeg,
+        tempRoot: temp,
+        idleTimeout: const Duration(milliseconds: 50),
       );
+      ytDlp.silent = true;
+      final err = await errorOf(service.download(request(QualityPreset.best)));
+      expect(err, isA<Network>());
+      expect(ytDlp.cancelled, ['j1']);
       expect(tempIsEmpty(), isTrue);
     });
 
-    test('cancel during a transfer ends with Cancelled', () async {
-      final live = source.live[137] = StreamController<List<int>>();
-      addTearDown(live.close);
+    test('cancel during the download stops yt-dlp', () async {
+      ytDlp.hold = Completer<void>();
       final events = <JobProgress>[];
       final done = Completer<Object>();
       service
           .download(request(QualityPreset.best))
           .listen(events.add, onError: done.complete);
 
-      live.add(List<int>.filled(100, 1));
       await pumpUntil(() => events.isNotEmpty);
       await service.cancel('j1');
 
       expect(await done.future, isA<Cancelled>());
-      expect(source.opened, [137]);
+      expect(ytDlp.cancelled, ['j1']);
       await pumpUntil(tempIsEmpty);
     });
 
@@ -280,35 +310,42 @@ void main() {
 
       expect(await done.future, isA<Cancelled>());
       expect(ffmpeg.cancelCount, 1);
+      expect(ytDlp.cancelled, isEmpty);
       ffmpeg.hold!.complete();
       expect(tempIsEmpty(), isTrue);
     });
 
     test('cancelling the subscription cancels the job', () async {
-      final live = source.live[137] = StreamController<List<int>>();
-      addTearDown(live.close);
+      ytDlp.hold = Completer<void>();
       final sub = service.download(request(QualityPreset.best)).listen(null);
-      await pumpUntil(() => source.opened.isNotEmpty);
+      await pumpUntil(() => ytDlp.runs.isNotEmpty);
 
       await sub.cancel();
 
-      expect(live.hasListener, isFalse);
+      expect(ytDlp.cancelled, ['j1']);
       await service.cancel('unknown');
     });
 
     test('a second stream for a running job id is rejected', () async {
-      final live = source.live[137] = StreamController<List<int>>();
-      addTearDown(live.close);
+      ytDlp.hold = Completer<void>();
       final first = service.download(request(QualityPreset.best)).listen(null);
       addTearDown(first.cancel);
-      await pumpUntil(() => source.opened.isNotEmpty);
+      await pumpUntil(() => ytDlp.runs.isNotEmpty);
 
       await expectLater(
         service.download(request(QualityPreset.best)),
         emitsError(isA<StateError>()),
       );
-      expect(live.hasListener, isTrue);
+      expect(ytDlp.cancelled, isEmpty);
     });
+  });
+
+  test('muxExtension follows the yt-dlp merger', () {
+    expect(AndroidMediaService.muxExtension('.mp4', '.m4a'), '.mp4');
+    expect(AndroidMediaService.muxExtension('.MP4', '.mp4'), '.mp4');
+    expect(AndroidMediaService.muxExtension('.webm', '.webm'), '.webm');
+    expect(AndroidMediaService.muxExtension('.webm', '.m4a'), '.mkv');
+    expect(AndroidMediaService.muxExtension('.mp4', '.webm'), '.mkv');
   });
 
   group('convert', () {
@@ -370,7 +407,7 @@ void main() {
 
     test('works without a storage service', () async {
       final bare = AndroidMediaService(
-        source: source,
+        ytDlp: ytDlp,
         ffmpeg: ffmpeg,
         tempRoot: temp,
       );
@@ -379,17 +416,6 @@ void main() {
           .last;
       expect(last.phase, JobPhase.finished);
     });
-  });
-
-  test('safeFileName keeps only portable characters', () {
-    expect(
-      AndroidMediaService.safeFileName('Big Buck Bunny: 60fps 4K!'),
-      'Big_Buck_Bunny_60fps_4K',
-    );
-    expect(AndroidMediaService.safeFileName('a/b\\c?.mp4'), 'a_b_c_.mp4');
-    expect(AndroidMediaService.safeFileName('...'), 'video');
-    expect(AndroidMediaService.safeFileName('Café — été'), 'Caf_t');
-    expect(AndroidMediaService.safeFileName('x' * 300).length, 150);
   });
 }
 

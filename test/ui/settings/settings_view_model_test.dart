@@ -266,21 +266,40 @@ void main() {
   group('android', () {
     setUp(() => env = TestEnv.android());
 
-    test('shows the bundled ffmpeg and the storage access', () async {
+    test('shows yt-dlp, the bundled ffmpeg and the storage access', () async {
       await start();
       expect(state().isDesktop, isFalse);
-      expect(state().ytDlpVersion, isNull);
+      expect(state().ytDlpVersion, '2026.10.26');
       expect(state().ffmpegVersion, '7.1');
       expect(state().storageAccess, StorageAccess.granted);
       expect(state().canChangeDownloadDir, isFalse);
     });
 
-    test('pickDownloadDir and updateYtDlp do nothing', () async {
+    test('pickDownloadDir does nothing', () async {
       final vm = await start();
       await vm.pickDownloadDir();
-      await vm.updateYtDlp();
       expect(env.pickerCalls, isEmpty);
-      expect(state().ytDlpUpdate, UpdateStatus.idle);
+    });
+
+    test('updateYtDlp updates through the bridge', () async {
+      final vm = await start();
+      await vm.updateYtDlp();
+      verify(() => env.ytDlp.update()).called(1);
+      expect(state().ytDlpUpdate, UpdateStatus.done);
+      expect(state().ytDlpVersion, '2026.11.01');
+    });
+
+    test('updateYtDlp reports a bridge failure', () async {
+      when(() => env.ytDlp.update()).thenThrow(const Network('offline'));
+      final vm = await start();
+      await vm.updateYtDlp();
+      expect(state().ytDlpUpdate, UpdateStatus.failed);
+    });
+
+    test('an unreadable yt-dlp version shows as unknown', () async {
+      when(() => env.ytDlp.version()).thenThrow(const Unexpected('boom'));
+      await start();
+      expect(state().ytDlpVersion, isNull);
     });
 
     test('refreshStorageAccess re-reads the status', () async {

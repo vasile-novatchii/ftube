@@ -59,7 +59,7 @@ flowchart TD
   class ytdlp,ffcli,deno,yte,ffkit,sites,gh,mirror ext
 ```
 
-- Desktop supports any site `yt-dlp` supports. Android supports YouTube only.
+- Desktop supports any site `yt-dlp` supports. Android supported YouTube only until v0.3, which moved it to yt-dlp too (spec-v0.3 D-38).
 - `yt-dlp` needs `ffmpeg` and `ffprobe` to merge formats and to extract audio with `-x`. It finds them through `--ffmpeg-location`, and Deno through `--js-runtimes`.
 
 ### Feature mapping from `ftube.sh`
@@ -272,7 +272,7 @@ sequenceDiagram
   end
 ```
 
-- The flags `--restrict-filenames`, `--ignore-config` and `--no-playlist` are always passed, matching `ftube.sh`.
+- The flags `--ignore-config` and `--no-playlist` are always passed. `--restrict-filenames` was passed until v0.3, which keeps the title as the file name (spec-v0.3 D-39).
 - QueueView and LibraryView observe the same `DownloadRepository` stream.
 
 **Android high-quality download**
@@ -373,7 +373,7 @@ stateDiagram-v2
   - Supported CPUs: macOS arm64 and x86_64, Windows x86_64, Linux x86_64. Others get `Unsupported`.
 - D-3: `BinaryService` runs the binaries from `<app support>/bin`. During development the `FTUBE_BIN_DIR` environment variable points it at `build/binaries/<os>` from `tool/fetch_binaries.dart` instead.
 - D-4: "Update yt-dlp" runs `yt-dlp -U` on the installed copy in `<app support>/bin`. The installer keeps an updated yt-dlp as long as the catalog entry does not change; a new catalog entry in a newer app version replaces it.
-- D-5: Android uses `youtube_explode_dart` + `ffmpeg_kit_flutter_new_audio`. High quality comes from muxing a video-only and an audio-only stream with `-c copy`.
+- D-5: Android uses `youtube_explode_dart` + `ffmpeg_kit_flutter_new_audio`. High quality comes from muxing a video-only and an audio-only stream with `-c copy`. Since v0.3 yt-dlp downloads the streams instead of `youtube_explode_dart` (spec-v0.3 D-31); `ffmpeg_kit` still muxes and converts.
 - D-6: The architecture is MVVM as in the Flutter guide, with Riverpod 3 notifiers as ViewModels, `riverpod_generator` and `freezed` for state.
 - D-7: Theme uses `ThemeMode.system` by default, with a user override for Light or Dark. Material 3 with a seeded `ColorScheme`.
 - D-8: Localization uses `gen-l10n` with ARB files: `app_en.arb` is the template and `app_ro.arb` the translation. English is the default and the fallback.

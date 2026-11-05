@@ -15,7 +15,7 @@ import '../data/services/android/android_file_launcher.dart';
 import '../data/services/android/android_media_service.dart';
 import '../data/services/android/ffmpeg_kit_runner.dart';
 import '../data/services/android/storage_permission_service.dart';
-import '../data/services/android/youtube_source.dart';
+import '../data/services/android/yt_dlp_bridge.dart';
 import '../data/services/binaries/binary_catalog.dart';
 import '../data/services/binaries/binary_installer.dart';
 import '../data/services/binary_service.dart';
@@ -137,6 +137,11 @@ StoragePermissionService? storagePermissionService(Ref ref) =>
 @Riverpod(keepAlive: true)
 FfmpegRunner ffmpegRunner(Ref ref) => const KitFfmpegRunner();
 
+/// yt-dlp through youtubedl-android (spec-v0.3 D-33). Null on desktop.
+@Riverpod(keepAlive: true)
+YtDlpBridge? ytDlpBridge(Ref ref) =>
+    ref.watch(appPlatformProvider).isDesktop ? null : ChannelYtDlpBridge();
+
 @Riverpod(keepAlive: true)
 MediaService mediaService(Ref ref) {
   final temp = ref.watch(appDirsProvider).temp;
@@ -148,10 +153,8 @@ MediaService mediaService(Ref ref) {
       tempRoot: temp,
     );
   }
-  final source = ExplodeYoutubeSource();
-  ref.onDispose(source.close);
   return AndroidMediaService(
-    source: source,
+    ytDlp: ref.watch(ytDlpBridgeProvider)!,
     ffmpeg: ref.watch(ffmpegRunnerProvider),
     tempRoot: temp,
     storage: ref.watch(storagePermissionServiceProvider),

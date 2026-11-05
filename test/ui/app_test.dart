@@ -46,7 +46,7 @@ void main() {
       expect(app(tester).locale, const Locale('en'));
       expect(find.byType(NavigationRail), findsOneWidget);
       expect(find.byType(NavigationBar), findsNothing);
-      expect(find.text('Paste a YouTube link to get started.'), findsOneWidget);
+      expect(find.text('Paste a video link to get started.'), findsOneWidget);
     });
 
     testWidgets('navigates between the three screens', (tester) async {

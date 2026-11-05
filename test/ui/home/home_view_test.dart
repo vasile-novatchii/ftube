@@ -107,22 +107,22 @@ void main() {
       (
         const Locale('en'),
         ThemeMode.light,
-        'Paste a YouTube link',
-        'Paste a YouTube link to get started.',
+        'Paste a video link',
+        'Paste a video link to get started.',
         'Queue (0)',
       ),
       (
         const Locale('ro'),
         ThemeMode.dark,
-        'Lipește un link YouTube',
-        'Lipește un link YouTube pentru a începe.',
+        'Lipește un link video',
+        'Lipește un link video pentru a începe.',
         'Coadă (0)',
       ),
       (
         const Locale('ar'),
         ThemeMode.light,
-        'الصق رابط YouTube',
-        'الصق رابط YouTube للبدء.',
+        'الصق رابط فيديو',
+        'الصق رابط فيديو للبدء.',
         'قائمة الانتظار (0)',
       ),
     ]) {
@@ -174,7 +174,7 @@ void main() {
       await tester.tap(text('home.fetch'));
       await tester.pumpAndSettle();
       expect(text('home.error'), findsOneWidget);
-      expect(find.text('Paste a YouTube link to get started.'), findsNothing);
+      expect(find.text('Paste a video link to get started.'), findsNothing);
     });
 
     testWidgets('picks a preset and downloads', (tester) async {

@@ -36,11 +36,10 @@ void main() {
     });
   });
 
-  test('common flags match ftube.sh and add the runtimes', () {
+  test('common flags add the tools and keep titles as they are', () {
     expect(YtDlpArgs.common(ffmpegDir: '/bin', denoPath: '/bin/deno'), [
       '--ignore-config',
       '--no-playlist',
-      '--restrict-filenames',
       '--ffmpeg-location',
       '/bin',
       '--js-runtimes',
@@ -65,7 +64,7 @@ void main() {
       outDir: Directory('/out'),
     );
 
-    test('video preset: selector, paths, templates, url last', () {
+    test('video preset: selector, temp output, templates, url last', () {
       final args = YtDlpArgs.download(
         req(QualityPreset.p720),
         ffmpegDir: '/bin',
@@ -73,11 +72,21 @@ void main() {
       );
       String after(String flag) => args[args.indexOf(flag) + 1];
       expect(after('-f'), 'bv*[height<=720]+ba/b[height<=720]');
-      expect(after('-o'), '%(title)s.%(ext)s');
-      expect(args, containsAllInOrder(['-P', '/out', '-P', 'temp:/tmp/j1']));
+      expect(after('-o'), 'media.%(ext)s');
+      expect(after('-P'), '/tmp/j1');
+      expect(args.where((a) => a == '-P'), hasLength(1));
+      expect(args, isNot(contains('/out')));
       expect(args, containsAll(['--newline', '--progress', '--no-simulate']));
       expect(args, isNot(contains('-x')));
-      expect(after('--print'), 'after_move:FTUBE_FILE|%(filepath)s');
+      expect(
+        args,
+        containsAllInOrder([
+          '--print',
+          'video:FTUBE_TITLE|%(title)s',
+          '--print',
+          'after_move:FTUBE_FILE|%(filepath)s',
+        ]),
+      );
       expect(args.where((a) => a.startsWith('download:FTUBE|')), hasLength(1));
       expect(
         args.where((a) => a.startsWith('postprocess:FTUBE_PP|')),
@@ -106,6 +115,56 @@ void main() {
             '0',
           ]),
         );
+      }
+    });
+  });
+
+  group('android', () {
+    test('info ends with -J -- url and adds no tool paths', () {
+      expect(YtDlpArgs.androidInfo('https://x.test/v'), [
+        '--ignore-config',
+        '--no-playlist',
+        '-J',
+        '--',
+        'https://x.test/v',
+      ]);
+    });
+
+    test('download: temp output, title print, no -x or tool flags', () {
+      for (final preset in QualityPreset.values) {
+        final args = YtDlpArgs.androidDownload(
+          DownloadRequest(
+            jobId: 'j1',
+            url: 'https://x.test/v',
+            preset: preset,
+            formatId: preset == QualityPreset.custom ? '137+ba' : null,
+            outDir: Directory('/out'),
+          ),
+          tempDir: '/tmp/j1',
+        );
+        String after(String flag) => args[args.indexOf(flag) + 1];
+        expect(
+          after('-f'),
+          YtDlpArgs.formatSelector(
+            preset,
+            formatId: preset == QualityPreset.custom ? '137+ba' : null,
+          ),
+        );
+        expect(after('-o'), 'media.%(ext)s');
+        expect(after('-P'), '/tmp/j1');
+        expect(after('--print'), 'video:FTUBE_TITLE|%(title)s');
+        expect(after('--progress-template'), startsWith('download:FTUBE|'));
+        expect(
+          args,
+          isNot(
+            anyOf(
+              contains('-x'),
+              contains('--ffmpeg-location'),
+              contains('--js-runtimes'),
+            ),
+          ),
+        );
+        expect(args.sublist(args.length - 2), ['--', 'https://x.test/v']);
       }
     });
   });

@@ -64,10 +64,28 @@ final class YtDlpFileLine extends YtDlpLine {
   final String path;
 }
 
+/// The video title, printed before the download starts (Android).
+final class YtDlpTitleLine extends YtDlpLine {
+  const YtDlpTitleLine(this.title);
+
+  final String title;
+}
+
+/// yt-dlp started writing one format to [path].
+final class YtDlpDestinationLine extends YtDlpLine {
+  const YtDlpDestinationLine(this.path);
+
+  final String path;
+}
+
 /// Parses yt-dlp JSON and progress output.
 abstract final class YtDlpOutput {
   /// Parses one output line, or returns null for any other line.
   static YtDlpLine? parseLine(String line) {
+    const destination = '[download] Destination: ';
+    if (line.startsWith(destination)) {
+      return YtDlpDestinationLine(line.substring(destination.length).trim());
+    }
     final parts = line.trimRight().split('|');
     switch (parts.first) {
       case YtDlpArgs.progressTag when parts.length >= 8:
@@ -87,6 +105,8 @@ abstract final class YtDlpOutput {
           started: parts[1] == 'started',
           name: parts[2],
         );
+      case YtDlpArgs.titleTag when parts.length >= 2:
+        return YtDlpTitleLine(parts.sublist(1).join('|'));
       case YtDlpArgs.fileTag when parts.length >= 2:
         // The path itself may contain '|'.
         return YtDlpFileLine(parts.sublist(1).join('|'));

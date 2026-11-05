@@ -2,118 +2,122 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:ftube/data/services/android/ffmpeg_kit_runner.dart';
-import 'package:ftube/data/services/android/youtube_source.dart';
-import 'package:ftube/domain/models/models.dart';
+import 'package:ftube/data/services/android/yt_dlp_bridge.dart';
+import 'package:path/path.dart' as p;
 
-YtStream muxed(int tag, String container, int height) => YtStream(
-  tag: tag,
-  kind: FormatKind.videoAudio,
-  container: container,
-  height: height,
-  fps: 30,
-  bitrateBps: height * 1000,
-  sizeBytes: 1000,
-  qualityLabel: '${height}p',
-);
+/// One file the fake yt-dlp writes: `media.f<id>.<ext>`.
+class FakePart {
+  const FakePart(this.id, this.ext, {this.audio = false, this.size = 1000});
 
-YtStream videoOnly(
-  int tag,
-  String container,
-  int height, {
-  int fps = 30,
-  int size = 1000,
-}) => YtStream(
-  tag: tag,
-  kind: FormatKind.videoOnly,
-  container: container,
-  height: height,
-  fps: fps,
-  bitrateBps: height * 2000,
-  sizeBytes: size,
-  qualityLabel: fps > 30 ? '${height}p$fps' : '${height}p',
-);
+  final String id;
+  final String ext;
+  final bool audio;
+  final int size;
+}
 
-YtStream audioOnly(int tag, String container, int bitrate, {int size = 100}) =>
-    YtStream(
-      tag: tag,
-      kind: FormatKind.audioOnly,
-      container: container,
-      bitrateBps: bitrate,
-      sizeBytes: size,
-    );
-
-/// A [YoutubeSource] that serves fixed streams. Each stream's bytes are
-/// [size] bytes of its tag, sent in chunks of [chunk] bytes, unless a
-/// controller is registered in [live].
-class FakeYoutubeSource implements YoutubeSource {
-  FakeYoutubeSource({
-    required this.streamList,
-    this.info = const YtVideo(
-      id: 'abc123def45',
-      title: 'Big Buck Bunny: 60fps 4K!',
-      author: 'Blender',
-      duration: Duration(seconds: 10),
-      thumbnailUrl: 'https://img.test/t.jpg',
-    ),
-    this.chunk = 400,
+/// A [YtDlpBridge] that acts like yt-dlp without ffmpeg (spec-v0.3 D-32):
+/// it prints the title, then for each of [parts] a Destination line,
+/// writes the file and prints two `FTUBE|` progress lines.
+class FakeYtDlpBridge implements YtDlpBridge {
+  FakeYtDlpBridge({
+    this.title = 'Big Buck Bunny: 60fps 4K!',
+    this.parts = const [
+      FakePart('137', 'mp4', size: 2000),
+      FakePart('140', 'm4a', audio: true, size: 500),
+    ],
   });
 
-  List<YtStream> streamList;
-  YtVideo info;
-  final int chunk;
+  String title;
+  List<FakePart> parts;
 
-  Object? videoError;
-  Object? streamsError;
+  /// stdout of `-J` runs.
+  String infoJson =
+      '{"title": "Big Buck Bunny", "uploader": "Blender", '
+      '"duration": 10, "thumbnail": "https://img.test/t.jpg", "formats": ['
+      '{"format_id": "18", "ext": "mp4", "vcodec": "avc1", "acodec": "mp4a", '
+      '"resolution": "640x360", "height": 360}, '
+      '{"format_id": "140", "ext": "m4a", "vcodec": "none", "acodec": "mp4a", '
+      '"resolution": "audio only"}]}';
 
-  /// Error thrown by the stream with this tag after its first chunk.
-  final failAfterFirstChunk = <int, Object>{};
+  int exitCode = 0;
+  String stderr = '';
 
-  /// Streams left open until the test closes them.
-  final live = <int, StreamController<List<int>>>{};
+  /// Print Destination lines; yt-dlp may leave them out.
+  bool announce = true;
 
-  int manifestCalls = 0;
-  final opened = <int>[];
-  bool closed = false;
+  /// When set, runs wait for this after printing the first part's lines.
+  Completer<void>? hold;
+
+  /// Runs print nothing and wait until cancelled.
+  bool silent = false;
+
+  Object? updateError;
+  String? installed = '2026.10.26';
+
+  int updateCalls = 0;
+  final runs = <List<String>>[];
+  final cancelled = <String>[];
+  final _cancels = <String, Completer<void>>{};
 
   @override
-  String? parseVideoId(String url) {
-    final uri = Uri.parse(url);
-    if (uri.host == 'youtu.be') return uri.pathSegments.first;
-    if (uri.host.endsWith('youtube.com')) return uri.queryParameters['v'];
-    return null;
+  Future<String?> version() async => installed;
+
+  @override
+  Future<String?> update() async {
+    updateCalls++;
+    if (updateError case final e?) throw e;
+    return installed;
   }
 
   @override
-  Future<YtVideo> video(String videoId) async {
-    if (videoError case final e?) throw e;
-    return info;
-  }
-
-  @override
-  Future<List<YtStream>> streams(String videoId) async {
-    manifestCalls++;
-    if (streamsError case final e?) throw e;
-    return streamList;
-  }
-
-  @override
-  Stream<List<int>> open(YtStream stream) {
-    opened.add(stream.tag);
-    if (live[stream.tag] case final c?) return c.stream;
-    return _bytes(stream);
-  }
-
-  Stream<List<int>> _bytes(YtStream stream) async* {
-    final total = stream.sizeBytes ?? 0;
-    for (var sent = 0; sent < total; sent += chunk) {
-      final n = sent + chunk > total ? total - sent : chunk;
-      yield List<int>.filled(n, stream.tag & 0xff);
-      if (failAfterFirstChunk[stream.tag] case final e?) throw e;
+  Future<YtDlpResult> run(
+    String id,
+    List<String> args, {
+    void Function(String line)? onLine,
+  }) async {
+    runs.add(args);
+    final cancel = _cancels[id] = Completer<void>();
+    final emit = onLine ?? (_) {};
+    try {
+      await Future<void>.delayed(Duration.zero);
+      if (silent) {
+        await cancel.future;
+        return const YtDlpResult(exitCode: -1, cancelled: true);
+      }
+      if (args.contains('-J')) {
+        emit(infoJson);
+        return YtDlpResult(exitCode: exitCode, stderr: stderr);
+      }
+      final dir = args[args.indexOf('-P') + 1];
+      emit('FTUBE_TITLE|$title');
+      for (final (i, part) in parts.indexed) {
+        final path = p.join(dir, 'media.f${part.id}.${part.ext}');
+        if (announce) emit('[download] Destination: $path');
+        final vcodec = part.audio ? 'none' : 'avc1';
+        emit(
+          'FTUBE|downloading|${part.size ~/ 2}|${part.size}|NA|1000|1|$vcodec',
+        );
+        if (i == 0 && hold != null) {
+          await Future.any([hold!.future, cancel.future]);
+          if (cancel.isCompleted) {
+            return const YtDlpResult(exitCode: -1, cancelled: true);
+          }
+        }
+        await File(path).writeAsString('x' * part.size);
+        emit('FTUBE|finished|${part.size}|${part.size}|NA|NA|NA|$vcodec');
+      }
+      return YtDlpResult(exitCode: exitCode, stderr: stderr);
+    } finally {
+      _cancels.remove(id);
     }
   }
 
   @override
-  void close() => closed = true;
+  Future<void> cancel(String id) async {
+    cancelled.add(id);
+    final c = _cancels[id];
+    if (c != null && !c.isCompleted) c.complete();
+  }
 }
 
 /// An [FfmpegRunner] that records calls and writes the output file.

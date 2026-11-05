@@ -145,7 +145,8 @@ void main() {
       await process.started;
       await pumpEventQueue();
       expect(temp.listSync().single.path, p.join(temp.path, 'j1'));
-      expect(out.existsSync(), isTrue);
+      // The download folder is only touched once the file is ready.
+      expect(out.existsSync(), isFalse);
       for (final line in File(
         'test/fixtures/yt_dlp/progress_video_audio.txt',
       ).readAsLinesSync()) {
@@ -154,13 +155,17 @@ void main() {
       // stdout and stderr are separate pipes; let stdout drain first, as
       // yt-dlp finishes downloading before it starts the merger.
       await pumpEventQueue();
+      final merged = File(p.join(temp.path, 'j1', 'media.mp4'))
+        ..writeAsStringSync('merged');
       process
+        ..out('FTUBE_TITLE|Me at the zoo')
         ..err('FTUBE_PP|started|Merger')
-        ..err('FTUBE_PP|finished|Merger');
+        ..err('FTUBE_PP|finished|Merger')
+        ..out('FTUBE_FILE|${merged.path}');
       await process.finish(0);
       await done;
 
-      expect(args(), containsAllInOrder(['-P', 'temp:${temp.path}/j1']));
+      expect(args(), containsAllInOrder(['-P', '${temp.path}/j1']));
       final phases = events.map((e) => e.phase).toSet();
       expect(phases, {
         JobPhase.downloadingVideo,
@@ -172,10 +177,8 @@ void main() {
       expect(fractions, orderedEquals([...fractions]..sort()));
       expect(events.first.totalBytes, 195278);
       expect(events.last.fraction, 1);
-      expect(
-        events.last.outputPath,
-        '/home/user/Downloads/Ftube/Me_at_the_zoo.mp4',
-      );
+      expect(events.last.outputPath, p.join(out.path, 'Me at the zoo.mp4'));
+      expect(File(events.last.outputPath!).readAsStringSync(), 'merged');
       expect(temp.listSync(), isEmpty, reason: 'job temp folder removed');
     });
 
@@ -189,10 +192,16 @@ void main() {
           .asFuture<void>();
       await process.started;
       await pumpEventQueue();
+      File(p.join(temp.path, 'j1', 'media.mp3')).writeAsStringSync('new');
+      out.createSync();
+      File(p.join(out.path, 'Song: live.mp3')).writeAsStringSync('old');
+      File(p.join(out.path, 'Song： live.mp3')).writeAsStringSync('older');
       process
-        ..out('FTUBE|downloading|50|100|NA|1|1|none')
-        ..err('FTUBE_PP|started|ExtractAudio')
-        ..out('FTUBE_FILE|/out/song.mp3');
+        ..out('FTUBE_TITLE|Song: live')
+        ..out('FTUBE|downloading|50|100|NA|1|1|none');
+      await pumpEventQueue();
+      process.err('FTUBE_PP|started|ExtractAudio');
+      // No FTUBE_FILE line: the only media file in the job folder is used.
       await process.finish(0);
       await done;
 
@@ -201,7 +210,12 @@ void main() {
         (JobPhase.converting, 0.9),
         (JobPhase.finished, 1.0),
       ]);
-      expect(events.last.outputPath, '/out/song.mp3');
+      expect(events.last.outputPath, p.join(out.path, 'Song： live (2).mp3'));
+      expect(File(events.last.outputPath!).readAsStringSync(), 'new');
+      expect(
+        File(p.join(out.path, 'Song： live.mp3')).readAsStringSync(),
+        'older',
+      );
     });
 
     test('non-zero exit becomes a typed error and cleans up', () async {
@@ -224,6 +238,17 @@ void main() {
         ),
       );
       expect(temp.listSync(), isEmpty);
+    });
+
+    test('fails when yt-dlp leaves no single result', () async {
+      final process = FakeProcess();
+      onStart(process);
+      final result = service.download(request(QualityPreset.best)).toList();
+      await process.started;
+      await pumpEventQueue();
+      await process.finish(0);
+      await expectLater(result, throwsA(isA<Unexpected>()));
+      expect(out.existsSync(), isFalse);
     });
 
     test('invalid URL fails before starting', () async {
@@ -254,6 +279,7 @@ void main() {
         service.download(request(QualityPreset.best)).toList(),
         throwsStateError,
       );
+      File(p.join(temp.path, 'j1', 'media.mp4')).writeAsStringSync('v');
       await process.finish(0);
       await first;
     });

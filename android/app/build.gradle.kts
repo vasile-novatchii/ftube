@@ -78,3 +78,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// yt-dlp on Android, see docs/spec-v0.3.md D-31. Its ffmpeg module is left out (D-32).
+dependencies {
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
+}

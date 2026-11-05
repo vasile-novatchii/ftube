@@ -21,6 +21,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
+        YtDlpChannel(applicationContext, messenger)
         // See StoragePermissionService in lib/data/services/android/.
         MethodChannel(messenger, "io.github.infvyr.ftube/storage")
             .setMethodCallHandler { call, result ->

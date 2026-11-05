@@ -220,14 +220,11 @@ class HomeViewModel extends _$HomeViewModel {
   }
 
   /// The `formatId` for the request. yt-dlp downloads a video-only format
-  /// without sound, so desktop adds the best audio (`+ba`, spec D-16);
-  /// Android's stream picker adds matching audio by itself.
+  /// without sound, so the best audio is added (`+ba`, spec D-16). Android
+  /// runs yt-dlp too since v0.3 (spec-v0.3 D-38).
   String? _selector(MediaFormat? format) {
     if (format == null) return null;
-    final desktop = ref.read(appPlatformProvider).isDesktop;
-    return desktop && format.kind == FormatKind.videoOnly
-        ? '${format.id}+ba'
-        : format.id;
+    return format.kind == FormatKind.videoOnly ? '${format.id}+ba' : format.id;
   }
 
   Future<String?> _readClipboard() async {

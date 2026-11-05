@@ -4,7 +4,7 @@
   "navHome": "Home",
   "navLibrary": "Library",
   "navSettings": "Settings",
-  "homeEmpty": "Paste a YouTube link to get started.",
+  "homeEmpty": "Paste a video link to get started.",
   "libraryEmpty": "Your downloads will appear here.",
   "settingsAppearance": "Appearance",
   "settingsTheme": "Theme",
@@ -157,7 +157,7 @@
     }
   },
   "errorFile": "The file could not be changed or opened.",
-  "homeUrlHint": "Paste a YouTube link",
+  "homeUrlHint": "Paste a video link",
   "homePaste": "Paste",
   "homeClear": "Clear",
   "homeFetch": "Go",

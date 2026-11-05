@@ -5,7 +5,7 @@ import '../../domain/models/models.dart';
 /// Fetches, downloads and converts media.
 ///
 /// Implemented by `DesktopMediaService` (bundled yt-dlp + ffmpeg) and
-/// `AndroidMediaService` (youtube_explode_dart + ffmpeg_kit).
+/// `AndroidMediaService` (yt-dlp via youtubedl-android + ffmpeg_kit).
 /// Failures are reported as `FtubeException` subclasses, as a thrown error
 /// for futures and as a stream error for streams.
 abstract interface class MediaService {

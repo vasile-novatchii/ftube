@@ -58,6 +58,18 @@ void main() {
       expect(l.path, '/a|b.mp4');
     });
 
+    test('reads the title and keeps a | inside it', () {
+      final l = YtDlpOutput.parseLine('FTUBE_TITLE|A | B')! as YtDlpTitleLine;
+      expect(l.title, 'A | B');
+    });
+
+    test('reads a download destination', () {
+      final l =
+          YtDlpOutput.parseLine('[download] Destination: /t/media.f399.mp4 ')!
+              as YtDlpDestinationLine;
+      expect(l.path, '/t/media.f399.mp4');
+    });
+
     test('ignores other lines', () {
       expect(YtDlpOutput.parseLine('WARNING: something'), isNull);
       expect(YtDlpOutput.parseLine('FTUBE|short'), isNull);

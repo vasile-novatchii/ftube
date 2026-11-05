@@ -241,13 +241,13 @@ void main() {
   group('android', () {
     setUp(() => setUpEnv(TestEnv.android()));
 
-    test('a video-only format is passed as is', () async {
+    test('a video-only format gets the best audio', () async {
       await fetched();
       vm().selectFormat('137');
       await vm().download();
       expect(
         c.read(downloadRepositoryProvider).jobs.single.request.formatId,
-        '137',
+        '137+ba',
       );
     });
 

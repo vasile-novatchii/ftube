@@ -210,13 +210,16 @@ void main() {
   group('android', () {
     setUp(() => env = TestEnv.android());
 
-    testWidgets('shows storage access and no desktop tools', (tester) async {
+    testWidgets('shows storage access, yt-dlp and no folder picker', (
+      tester,
+    ) async {
       when(() => env.storage.status())
           .thenAnswer((_) async => StorageAccess.denied);
       when(() => env.storage.request())
           .thenAnswer((_) async => StorageAccess.granted);
       await pump(tester, themeMode: ThemeMode.dark);
-      expect(find.byKey(const Key('settings.updateYtDlp')), findsNothing);
+      expect(find.byKey(const Key('settings.updateYtDlp')), findsOneWidget);
+      expect(find.text('2026.10.26'), findsOneWidget);
       expect(find.byKey(const Key('settings.folder.change')), findsNothing);
       expect(find.text('7.1'), findsOneWidget);
       expect(

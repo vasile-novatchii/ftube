@@ -176,21 +176,20 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
           ],
           _Header(l10n.settingsTools),
-          if (state.isDesktop)
-            _ControlTile(
-              title: Text(l10n.settingsYtDlpVersion),
-              subtitle: Text(_version(l10n, state, state.ytDlpVersion)),
-              control: state.ytDlpUpdate == UpdateStatus.running
-                  ? const SizedBox.square(
-                      dimension: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : OutlinedButton(
-                      key: const Key('settings.updateYtDlp'),
-                      onPressed: vm.updateYtDlp,
-                      child: Text(l10n.settingsUpdateYtDlp),
-                    ),
-            ),
+          _ControlTile(
+            title: Text(l10n.settingsYtDlpVersion),
+            subtitle: Text(_version(l10n, state, state.ytDlpVersion)),
+            control: state.ytDlpUpdate == UpdateStatus.running
+                ? const SizedBox.square(
+                    dimension: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : OutlinedButton(
+                    key: const Key('settings.updateYtDlp'),
+                    onPressed: vm.updateYtDlp,
+                    child: Text(l10n.settingsUpdateYtDlp),
+                  ),
+          ),
           ListTile(
             title: Text(l10n.settingsFfmpegVersion),
             subtitle: Text(_version(l10n, state, state.ffmpegVersion)),

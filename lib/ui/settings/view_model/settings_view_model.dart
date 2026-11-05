@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../config/providers.dart';
 import '../../../data/repositories/settings_repository.dart';
 import '../../../data/services/android/storage_permission_service.dart';
+import '../../../data/services/android/yt_dlp_bridge.dart';
 import '../../../data/services/binary_service.dart';
 import '../../../domain/models/app_settings.dart';
 import '../../../domain/models/quality_preset.dart';
@@ -78,16 +79,26 @@ typedef ToolVersions = ({String? ytDlp, String? ffmpeg});
 Future<ToolVersions> toolVersions(Ref ref) async {
   final binaries = ref.read(binaryServiceProvider);
   if (binaries == null) {
-    return (
-      ytDlp: null,
-      ffmpeg: await ref.read(ffmpegRunnerProvider).version(),
-    );
+    // Android: yt-dlp through youtubedl-android, ffmpeg_kit in-process.
+    final (ytDlp, ffmpeg) = await (
+      _androidYtDlpVersion(ref.read(ytDlpBridgeProvider)),
+      ref.read(ffmpegRunnerProvider).version(),
+    ).wait;
+    return (ytDlp: ytDlp, ffmpeg: ffmpeg);
   }
   final (ytDlp, ffmpeg) = await (
     binaries.version(Binary.ytDlp),
     binaries.version(Binary.ffmpeg),
   ).wait;
   return (ytDlp: ytDlp, ffmpeg: ffmpeg);
+}
+
+Future<String?> _androidYtDlpVersion(YtDlpBridge? bridge) async {
+  try {
+    return await bridge?.version();
+  } on Object {
+    return null;
+  }
 }
 
 @riverpod
@@ -177,17 +188,22 @@ class SettingsViewModel extends _$SettingsViewModel {
   Future<void> resetDownloadDir() =>
       _repo.update((s) => s.copyWith(downloadDir: null));
 
-  /// Runs `yt-dlp -U` (desktop). [SettingsState.ytDlpUpdate] reports the
+  /// Runs `yt-dlp -U` on desktop, or the youtubedl-android update on
+  /// Android (spec-v0.3 D-36). [SettingsState.ytDlpUpdate] reports the
   /// outcome.
   Future<void> updateYtDlp() async {
     final binaries = ref.read(binaryServiceProvider);
-    if (binaries == null || state.ytDlpUpdate == UpdateStatus.running) return;
+    final bridge = ref.read(ytDlpBridgeProvider);
+    if (binaries == null && bridge == null) return;
+    if (state.ytDlpUpdate == UpdateStatus.running) return;
     state = state.copyWith(
       ytDlpUpdate: UpdateStatus.running,
       ytDlpUpdateError: null,
     );
     try {
-      final version = await binaries.updateYtDlp();
+      final version = binaries != null
+          ? await binaries.updateYtDlp()
+          : await bridge!.update();
       // The next visit reads the updated version.
       ref.invalidate(toolVersionsProvider);
       if (!ref.mounted) return;

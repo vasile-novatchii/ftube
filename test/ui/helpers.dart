@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:ftube/config/providers.dart';
 import 'package:ftube/data/services/android/ffmpeg_kit_runner.dart';
 import 'package:ftube/data/services/android/storage_permission_service.dart';
+import 'package:ftube/data/services/android/yt_dlp_bridge.dart';
 import 'package:ftube/data/services/binaries/binary_catalog.dart';
 import 'package:ftube/data/services/binaries/binary_installer.dart';
 import 'package:ftube/data/services/binary_service.dart';
@@ -30,6 +31,8 @@ class MockStorage extends Mock implements StoragePermissionService {}
 class MockFfmpegRunner extends Mock implements FfmpegRunner {}
 
 class MockFileSystemService extends Mock implements FileSystemService {}
+
+class MockYtDlpBridge extends Mock implements YtDlpBridge {}
 
 /// Prefs backed by an in-memory map.
 Future<PrefsService> testPrefs([Map<String, Object> values = const {}]) {
@@ -70,6 +73,8 @@ class TestEnv {
     when(storage.ensureGranted).thenAnswer((_) async {});
     when(() => storage.scanFile(any())).thenAnswer((_) async {});
     when(() => ffmpeg.version()).thenAnswer((_) async => '7.1');
+    when(() => ytDlp.version()).thenAnswer((_) async => '2026.10.26');
+    when(() => ytDlp.update()).thenAnswer((_) async => '2026.11.01');
     when(() => storage.status()).thenAnswer((_) async => StorageAccess.granted);
     when(() => storage.openSettings()).thenAnswer((_) async => true);
   }
@@ -84,6 +89,7 @@ class TestEnv {
   final installer = MockBinaryInstaller();
   final storage = MockStorage();
   final ffmpeg = MockFfmpegRunner();
+  final ytDlp = MockYtDlpBridge();
   final media = FakeMediaService();
   final files = MockFileSystemService();
 
@@ -114,6 +120,7 @@ class TestEnv {
       platform.isDesktop ? null : storage,
     ),
     ffmpegRunnerProvider.overrideWithValue(ffmpeg),
+    ytDlpBridgeProvider.overrideWithValue(platform.isDesktop ? null : ytDlp),
     defaultDownloadDirProvider.overrideWith((ref) async {
       if (failLookups) throw StateError('no downloads folder');
       return defaultDir?.future ?? '/home/me/Downloads/Ftube';
