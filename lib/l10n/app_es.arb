@@ -147,5 +147,13 @@
   "libraryDeleteCount": "{count, plural, =1{¿Eliminar 1 archivo?} other{¿Eliminar {count} archivos?}}",
   "libraryDeleteBody": "Los archivos se mueven a la papelera. Puedes restaurarlos desde allí.",
   "libraryDeleted": "{count, plural, =1{Archivo movido a la papelera.} other{{count} archivos movidos a la papelera.}}",
-  "undo": "Deshacer"
+  "undo": "Deshacer",
+  "bgChannelProgress": "Descargas en curso",
+  "bgChannelResult": "Descargas terminadas",
+  "bgProgress": "Descargando {current} de {total}",
+  "bgProgressPercent": "Descargando {current} de {total} - {percent}%",
+  "bgCancelAll": "Cancelar todo",
+  "bgFinished": "{count, plural, =1{1 descarga terminada} other{{count} descargas terminadas}}",
+  "bgFailed": "{count, plural, =1{1 descarga fallida} other{{count} descargas fallidas}}",
+  "bgTimedOut": "Android pausó las descargas en segundo plano por hoy. Continúan mientras Ftube esté abierto."
 }

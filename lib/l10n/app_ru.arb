@@ -147,5 +147,13 @@
   "libraryDeleteCount": "{count, plural, one{Удалить {count} файл?} few{Удалить {count} файла?} many{Удалить {count} файлов?} other{Удалить {count} файла?}}",
   "libraryDeleteBody": "Файлы будут перемещены в корзину. Оттуда их можно восстановить.",
   "libraryDeleted": "{count, plural, one{{count} файл перемещён в корзину.} few{{count} файла перемещены в корзину.} many{{count} файлов перемещены в корзину.} other{{count} файла перемещены в корзину.}}",
-  "undo": "Отменить"
+  "undo": "Отменить",
+  "bgChannelProgress": "Текущие загрузки",
+  "bgChannelResult": "Завершённые загрузки",
+  "bgProgress": "Загрузка {current} из {total}",
+  "bgProgressPercent": "Загрузка {current} из {total} - {percent}%",
+  "bgCancelAll": "Отменить все",
+  "bgFinished": "{count, plural, one{{count} загрузка завершена} few{{count} загрузки завершены} many{{count} загрузок завершено} other{{count} загрузки завершено}}",
+  "bgFailed": "{count, plural, one{{count} загрузка не удалась} few{{count} загрузки не удались} many{{count} загрузок не удалось} other{{count} загрузки не удалось}}",
+  "bgTimedOut": "Android приостановил фоновые загрузки на сегодня. Они продолжатся, пока Ftube открыт."
 }

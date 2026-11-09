@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -13,7 +14,9 @@ import '../data/repositories/library_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/services/android/android_file_launcher.dart';
 import '../data/services/android/android_media_service.dart';
+import '../data/services/android/background_downloads.dart';
 import '../data/services/android/ffmpeg_kit_runner.dart';
+import '../data/services/android/notification_permission.dart';
 import '../data/services/android/storage_permission_service.dart';
 import '../data/services/android/yt_dlp_bridge.dart';
 import '../data/services/binaries/binary_catalog.dart';
@@ -26,6 +29,7 @@ import '../data/services/prefs_service.dart';
 import '../data/services/process_runner.dart';
 import '../data/services/removed_items_store.dart';
 import '../domain/models/app_settings.dart';
+import '../l10n/generated/app_localizations.dart';
 
 part 'providers.g.dart';
 
@@ -211,6 +215,29 @@ DownloadRepository downloadRepository(Ref ref) {
     )
     ..onDispose(repo.dispose);
   return repo;
+}
+
+/// Null on desktop.
+@Riverpod(keepAlive: true)
+NotificationPermission? notificationPermission(Ref ref) =>
+    ref.watch(appPlatformProvider).isDesktop
+    ? null
+    : NotificationPermission(ref.watch(prefsServiceProvider));
+
+/// Keeps Android's download service in step with the queue (spec-v0.4
+/// D-40). Null on desktop, where downloads stop with the window (D-48).
+@Riverpod(keepAlive: true)
+BackgroundDownloads? backgroundDownloads(Ref ref) {
+  if (ref.watch(appPlatformProvider).isDesktop) return null;
+  final service = BackgroundDownloads(
+    repository: ref.watch(downloadRepositoryProvider),
+    l10n: () => lookupAppLocalizations(
+      Locale(ref.read(currentSettingsProvider).language.code),
+    ),
+    notifications: ref.watch(notificationPermissionProvider),
+  )..start();
+  ref.onDispose(service.dispose);
+  return service;
 }
 
 @Riverpod(keepAlive: true)

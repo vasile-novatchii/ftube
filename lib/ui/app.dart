@@ -18,6 +18,8 @@ class FtubeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(currentSettingsProvider);
+    // Android: started once, lives as long as the engine (spec-v0.4).
+    ref.watch(backgroundDownloadsProvider);
     return MaterialApp(
       onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,

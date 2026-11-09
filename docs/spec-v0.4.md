@@ -34,8 +34,8 @@ flowchart TD
   user -->|"leaves the app"| act
   appk --> act
   repo -->|changes| bg
-  bg -->|"update(summary) / stop()"| chan --> svc
-  chan -->|"cancelAll / opened"| bg
+  bg -->|"update(texts) / stop(result)"| chan --> svc
+  chan -->|cancelAll| bg
   svc --> notif
   perm -->|"POST_NOTIFICATIONS, first download"| notif
   classDef new fill:#d4f7d4,stroke:#2e7d32
@@ -99,12 +99,12 @@ sequenceDiagram
 - D-42: foreground service type `dataSync` - it fits downloads and needs no Play review (Ftube isn't on Play anyway). Needs `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_DATA_SYNC`. `onTimeout` is handled (state diagram).
 - D-43: a `PARTIAL_WAKE_LOCK` and a `WIFI_MODE_FULL_HIGH_PERF` Wi-Fi lock are held only while the service runs, so a download doesn't stall with the screen off. Needs `WAKE_LOCK`.
 - D-44: `POST_NOTIFICATIONS` (Android 13+) is asked on the first download, not at launch. If it's denied, downloads still run in the background; Android just hides the notification and shows the app in the Task Manager instead.
-- D-45: the channel contract:
+- D-45: the channel contract (`io.github.infvyr.ftube/downloads`). Dart sends texts that are already translated, so all strings stay in the ARB files and Kotlin has no resources to translate:
 
   | Direction | Method | Args | Notes |
   |---|---|---|---|
-  | Dart → Kotlin | `update` | `{active: int, done: int, total: int, percent: int?, title: String?}` | starts the service if stopped |
-  | Dart → Kotlin | `stop` | `{completed: int, failed: int}` | posts the result notification unless both are 0 |
+  | Dart → Kotlin | `update` | `{title: String, text: String, percent: int?, strings: {progressChannel, resultChannel, cancelAll, timedOut}}` | starts the service if stopped; `percent` null shows an indeterminate bar |
+  | Dart → Kotlin | `stop` | `{title: String?, text: String?}` | stops the service; posts the result notification when `title` is set (not after Cancel all) |
   | Kotlin → Dart | `cancelAll` | - | from the notification action |
 
 - D-46: `BackgroundDownloads` derives the summary from `DownloadRepository.changes`: `total` counts the jobs since the service started, and `percent` is the mean progress of running jobs. `cancelAll` calls `DownloadRepository.cancel` for every active job.
@@ -115,7 +115,7 @@ sequenceDiagram
 
 | Level | Covers | Tools |
 |---|---|---|
-| Unit | `BackgroundDownloads`: update on first active job, throttled updates, `stop` with counts, `cancelAll` cancels only active jobs, nothing on desktop | fake `DownloadRepository` stream, mock channel, `fakeAsync` |
+| Unit | `BackgroundDownloads`: update on first active job, throttled updates, `stop` with counts, `cancelAll` cancels only active jobs, nothing on desktop | `FakeMediaService`, mock channel, `testWidgets` fake time |
 | Unit | Summary math: mean percent, `total` reset after stop | `test` |
 | Widget | First download asks for notification permission once; denial still queues the job | mock permission service |
 | Manual | Home button, swipe from recents, Back on Home, screen off 10 min, airplane mode mid-download, Cancel all from the notification | Android 12 device, latest emulator |

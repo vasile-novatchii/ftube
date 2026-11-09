@@ -276,5 +276,50 @@
       }
     }
   },
-  "undo": "Undo"
+  "undo": "Undo",
+  "bgChannelProgress": "Downloads in progress",
+  "bgChannelResult": "Finished downloads",
+  "bgProgress": "Downloading {current} of {total}",
+  "@bgProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bgProgressPercent": "Downloading {current} of {total} - {percent}%",
+  "@bgProgressPercent": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "bgCancelAll": "Cancel all",
+  "bgFinished": "{count, plural, =1{1 download finished} other{{count} downloads finished}}",
+  "@bgFinished": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bgFailed": "{count, plural, =1{1 download failed} other{{count} downloads failed}}",
+  "@bgFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bgTimedOut": "Android paused background downloads for today. They continue while Ftube is open."
 }

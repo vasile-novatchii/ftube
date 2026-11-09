@@ -147,5 +147,13 @@
   "libraryDeleteCount": "{count, plural, =1{1 Datei löschen?} other{{count} Dateien löschen?}}",
   "libraryDeleteBody": "Die Dateien werden in den Papierkorb verschoben. Von dort kannst du sie wiederherstellen.",
   "libraryDeleted": "{count, plural, =1{Datei in den Papierkorb verschoben.} other{{count} Dateien in den Papierkorb verschoben.}}",
-  "undo": "Rückgängig"
+  "undo": "Rückgängig",
+  "bgChannelProgress": "Laufende Downloads",
+  "bgChannelResult": "Abgeschlossene Downloads",
+  "bgProgress": "Download {current} von {total}",
+  "bgProgressPercent": "Download {current} von {total} - {percent}%",
+  "bgCancelAll": "Alle abbrechen",
+  "bgFinished": "{count, plural, =1{1 Download abgeschlossen} other{{count} Downloads abgeschlossen}}",
+  "bgFailed": "{count, plural, =1{1 Download fehlgeschlagen} other{{count} Downloads fehlgeschlagen}}",
+  "bgTimedOut": "Android hat Hintergrund-Downloads für heute pausiert. Sie laufen weiter, solange Ftube geöffnet ist."
 }

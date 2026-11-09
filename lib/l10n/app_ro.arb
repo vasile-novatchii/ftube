@@ -147,5 +147,13 @@
   "libraryDeleteCount": "{count, plural, =1{Ștergi 1 fișier?} few{Ștergi {count} fișiere?} other{Ștergi {count} de fișiere?}}",
   "libraryDeleteBody": "Fișierele sunt mutate în coșul de gunoi. Le poți restaura de acolo.",
   "libraryDeleted": "{count, plural, =1{Fișier mutat în coș.} few{{count} fișiere mutate în coș.} other{{count} de fișiere mutate în coș.}}",
-  "undo": "Anulează"
+  "undo": "Anulează",
+  "bgChannelProgress": "Descărcări în curs",
+  "bgChannelResult": "Descărcări finalizate",
+  "bgProgress": "Se descarcă {current} din {total}",
+  "bgProgressPercent": "Se descarcă {current} din {total} - {percent}%",
+  "bgCancelAll": "Anulează tot",
+  "bgFinished": "{count, plural, =1{1 descărcare finalizată} few{{count} descărcări finalizate} other{{count} de descărcări finalizate}}",
+  "bgFailed": "{count, plural, =1{1 descărcare eșuată} few{{count} descărcări eșuate} other{{count} de descărcări eșuate}}",
+  "bgTimedOut": "Android a oprit descărcările în fundal pentru azi. Ele continuă cât timp Ftube este deschis."
 }

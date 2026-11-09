@@ -5,7 +5,6 @@ import android.content.ClipData
 import android.content.Intent
 import android.media.MediaScannerConnection
 import android.net.Uri
-import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -14,37 +13,23 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
+/**
+ * The app's window. It uses the engine cached by [FtubeApplication], so
+ * closing it doesn't stop downloads (docs/spec-v0.4.md D-41). Only the
+ * channels that need this activity are registered here, again on every
+ * attach.
+ */
 class MainActivity : FlutterActivity() {
     /** The trash call waiting for the system dialog, with the paths it moves. */
     private var pendingTrash: Pair<MethodChannel.Result, List<String>>? = null
 
+    override fun getCachedEngineId() = FtubeApplication.ENGINE_ID
+
+    override fun shouldDestroyEngineWithHost() = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
-        YtDlpChannel(applicationContext, messenger)
-        // See StoragePermissionService in lib/data/services/android/.
-        MethodChannel(messenger, "io.github.infvyr.ftube/storage")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "downloadsDir" -> {
-                        @Suppress("DEPRECATION")
-                        val dir = Environment.getExternalStoragePublicDirectory(
-                            Environment.DIRECTORY_DOWNLOADS,
-                        )
-                        result.success(dir.absolutePath)
-                    }
-                    "scanFile" -> {
-                        val path = call.argument<String>("path")
-                        if (path == null) {
-                            result.error("bad_args", "path is required", null)
-                        } else {
-                            MediaScannerConnection.scanFile(applicationContext, arrayOf(path), null, null)
-                            result.success(null)
-                        }
-                    }
-                    else -> result.notImplemented()
-                }
-            }
         // See AndroidFileLauncher in lib/data/services/android/.
         MethodChannel(messenger, "io.github.infvyr.ftube/files")
             .setMethodCallHandler { call, result ->
@@ -61,6 +46,16 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** Drops the handlers that point at this activity. */
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
+        MethodChannel(messenger, "io.github.infvyr.ftube/files").setMethodCallHandler(null)
+        MethodChannel(messenger, "io.github.infvyr.ftube/trash").setMethodCallHandler(null)
+        pendingTrash?.first?.error("gone", "the window was closed", null)
+        pendingTrash = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     /**
