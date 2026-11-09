@@ -258,6 +258,7 @@ class _LibraryViewState extends ConsumerState<LibraryView> {
     return RefreshIndicator(
       onRefresh: _vm.load,
       child: ListView.builder(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: visible.length,
         itemBuilder: (context, i) {
