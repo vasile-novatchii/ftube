@@ -23,9 +23,30 @@ class MainActivity : FlutterActivity() {
     /** The trash call waiting for the system dialog, with the paths it moves. */
     private var pendingTrash: Pair<MethodChannel.Result, List<String>>? = null
 
+    /** [ShareActivity] took the engine; get it back when shown again. */
+    private var engineLost = false
+
     override fun getCachedEngineId() = FtubeApplication.ENGINE_ID
 
     override fun shouldDestroyEngineWithHost() = false
+
+    /**
+     * Flutter detaches this activity when another one attaches the engine,
+     * and never reattaches it (docs/spec-v0.4-share.md D-51, R-26).
+     */
+    override fun detachFromFlutterEngine() {
+        engineLost = true
+        super.detachFromFlutterEngine()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (engineLost) {
+            engineLost = false
+            // A new instance attaches the same engine; Dart state is kept.
+            recreate()
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

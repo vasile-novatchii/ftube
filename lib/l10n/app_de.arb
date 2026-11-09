@@ -155,5 +155,14 @@
   "bgCancelAll": "Alle abbrechen",
   "bgFinished": "{count, plural, =1{1 Download abgeschlossen} other{{count} Downloads abgeschlossen}}",
   "bgFailed": "{count, plural, =1{1 Download fehlgeschlagen} other{{count} Downloads fehlgeschlagen}}",
-  "bgTimedOut": "Android hat Hintergrund-Downloads für heute pausiert. Sie laufen weiter, solange Ftube geöffnet ist."
+  "bgTimedOut": "Android hat Hintergrund-Downloads für heute pausiert. Sie laufen weiter, solange Ftube geöffnet ist.",
+  "shareVideo": "Video",
+  "shareAudio": "Audio",
+  "shareFormat": "Format",
+  "shareFormatAuto": "Automatisch",
+  "shareStarted": "Download gestartet",
+  "shareNoLink": "Der geteilte Text enthält keinen Link.",
+  "shareNoAccess": "Ftube braucht Speicherzugriff, um Downloads zu speichern. Öffne Ftube, um ihn zu erlauben.",
+  "shareOpenApp": "Ftube öffnen",
+  "shareClose": "Schließen"
 }

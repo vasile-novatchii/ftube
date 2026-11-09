@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -10,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../data/repositories/download_repository.dart';
+import '../data/repositories/download_starter.dart';
 import '../data/repositories/library_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/services/android/android_file_launcher.dart';
@@ -17,6 +19,7 @@ import '../data/services/android/android_media_service.dart';
 import '../data/services/android/background_downloads.dart';
 import '../data/services/android/ffmpeg_kit_runner.dart';
 import '../data/services/android/notification_permission.dart';
+import '../data/services/android/share_link_service.dart';
 import '../data/services/android/storage_permission_service.dart';
 import '../data/services/android/yt_dlp_bridge.dart';
 import '../data/services/binaries/binary_catalog.dart';
@@ -215,6 +218,25 @@ DownloadRepository downloadRepository(Ref ref) {
     )
     ..onDispose(repo.dispose);
   return repo;
+}
+
+/// Queues fetched videos for Home and the share popup.
+@Riverpod(keepAlive: true)
+DownloadStarter downloadStarter(Ref ref) => DownloadStarter(
+  repository: ref.watch(downloadRepositoryProvider),
+  downloadDir: () => ref.read(downloadDirectoryProvider.future),
+  storage: ref.watch(storagePermissionServiceProvider),
+);
+
+/// Shares from other apps (spec-v0.4-share). Null on desktop. `main`
+/// overrides it with a service that has already taken a pending share.
+@Riverpod(keepAlive: true)
+ShareLinkService? shareLinkService(Ref ref) {
+  if (ref.watch(appPlatformProvider).isDesktop) return null;
+  final service = ShareLinkService();
+  unawaited(service.start());
+  ref.onDispose(service.dispose);
+  return service;
 }
 
 /// Null on desktop.

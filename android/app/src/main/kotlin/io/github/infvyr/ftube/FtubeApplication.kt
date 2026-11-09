@@ -18,6 +18,9 @@ class FtubeApplication : Application() {
     lateinit var downloads: DownloadsChannel
         private set
 
+    lateinit var share: ShareChannel
+        private set
+
     override fun onCreate() {
         super.onCreate()
         // Plugins are registered by the engine itself (automaticallyRegisterPlugins).
@@ -28,6 +31,7 @@ class FtubeApplication : Application() {
         YtDlpChannel(this, messenger)
         storageChannel(messenger)
         downloads = DownloadsChannel(this, messenger)
+        share = ShareChannel(this, messenger)
     }
 
     /** See StoragePermissionService in lib/data/services/android/. */

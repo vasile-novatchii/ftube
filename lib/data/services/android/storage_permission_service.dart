@@ -22,7 +22,7 @@ enum StorageAccess {
 class StoragePermissionService {
   const StoragePermissionService();
 
-  /// Channel implemented in `MainActivity.kt`.
+  /// Channel implemented in `FtubeApplication.kt`.
   static const channel = MethodChannel('io.github.infvyr.ftube/storage');
 
   /// Folder name under the public Downloads folder.

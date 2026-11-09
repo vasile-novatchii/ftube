@@ -3,17 +3,15 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../config/providers.dart';
+import '../../../data/repositories/download_starter.dart';
 import '../../../data/services/android/storage_permission_service.dart';
 import '../../../domain/exceptions/ftube_exception.dart';
 import '../../../domain/models/models.dart';
 
+export '../../../data/repositories/download_starter.dart' show NoDownloadFolder;
+
 part 'home_view_model.freezed.dart';
 part 'home_view_model.g.dart';
-
-/// The download folder could not be resolved, so nothing can be saved.
-class NoDownloadFolder implements Exception {
-  const NoDownloadFolder();
-}
 
 @freezed
 abstract class HomeState with _$HomeState {
@@ -168,29 +166,18 @@ class HomeViewModel extends _$HomeViewModel {
   Future<DownloadJob?> download() async {
     final info = state.info;
     if (info == null || !state.canDownload) return null;
-    final storage = ref.read(storagePermissionServiceProvider);
-    if (storage != null && await storage.status() != StorageAccess.granted) {
+    try {
+      final job = await ref
+          .read(downloadStarterProvider)
+          .start(info, state.preset, format: state.selectedFormat);
+      if (ref.mounted) state = state.copyWith(error: null);
+      return job;
+    } on StorageBlocked {
       if (ref.mounted) state = state.copyWith(storageBlocked: true);
-      return null;
+    } on NoDownloadFolder catch (e) {
+      if (ref.mounted) state = state.copyWith(error: e);
     }
-    final dir = await ref
-        .read(downloadDirectoryProvider.future)
-        .catchError((Object _) => null);
-    if (!ref.mounted) return null;
-    if (dir == null) {
-      state = state.copyWith(error: const NoDownloadFolder());
-      return null;
-    }
-    state = state.copyWith(error: null);
-    return ref
-        .read(downloadRepositoryProvider)
-        .enqueue(
-          url: info.url,
-          title: info.title,
-          preset: state.preset,
-          formatId: _selector(state.selectedFormat),
-          outDir: dir,
-        );
+    return null;
   }
 
   /// Android: asks for storage access, or opens the app settings when
@@ -217,14 +204,6 @@ class HomeViewModel extends _$HomeViewModel {
     if (ref.mounted && access == StorageAccess.granted) {
       state = state.copyWith(storageBlocked: false);
     }
-  }
-
-  /// The `formatId` for the request. yt-dlp downloads a video-only format
-  /// without sound, so the best audio is added (`+ba`, spec D-16). Android
-  /// runs yt-dlp too since v0.3 (spec-v0.3 D-38).
-  String? _selector(MediaFormat? format) {
-    if (format == null) return null;
-    return format.kind == FormatKind.videoOnly ? '${format.id}+ba' : format.id;
   }
 
   Future<String?> _readClipboard() async {

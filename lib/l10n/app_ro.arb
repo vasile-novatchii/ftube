@@ -155,5 +155,14 @@
   "bgCancelAll": "Anulează tot",
   "bgFinished": "{count, plural, =1{1 descărcare finalizată} few{{count} descărcări finalizate} other{{count} de descărcări finalizate}}",
   "bgFailed": "{count, plural, =1{1 descărcare eșuată} few{{count} descărcări eșuate} other{{count} de descărcări eșuate}}",
-  "bgTimedOut": "Android a oprit descărcările în fundal pentru azi. Ele continuă cât timp Ftube este deschis."
+  "bgTimedOut": "Android a oprit descărcările în fundal pentru azi. Ele continuă cât timp Ftube este deschis.",
+  "shareVideo": "Video",
+  "shareAudio": "Audio",
+  "shareFormat": "Format",
+  "shareFormatAuto": "Automat",
+  "shareStarted": "Descărcarea a început",
+  "shareNoLink": "Textul partajat nu conține niciun link.",
+  "shareNoAccess": "Ftube are nevoie de acces la stocare pentru a salva descărcările. Deschide Ftube pentru a-l permite.",
+  "shareOpenApp": "Deschide Ftube",
+  "shareClose": "Închide"
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,8 @@ import 'permission/view_model/permission_view_model.dart';
 import 'permission/widgets/permission_view.dart';
 import 'setup/view_model/setup_view_model.dart';
 import 'setup/widgets/setup_view.dart';
+import 'share/view_model/share_view_model.dart';
+import 'share/widgets/share_view.dart';
 import 'shell/app_shell.dart';
 
 /// Root widget: theme and language come from the saved settings.
@@ -34,7 +38,37 @@ class FtubeApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const AppGate(),
+      home: const AppRoot(),
+    );
+  }
+}
+
+/// The app, or the share popup in its place (spec-v0.4-share D-50). The
+/// app stays mounted while the popup is shown, so its state survives.
+class AppRoot extends ConsumerWidget {
+  const AppRoot({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final share = ref.watch(shareSessionProvider);
+    ref.listen(shareSessionProvider, (_, next) {
+      // App dialogs and sheets would cover the popup.
+      if (next != null) Navigator.of(context).popUntil((r) => r.isFirst);
+    });
+    return PopScope(
+      canPop: share == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(ref.read(shareSessionProvider.notifier).close());
+      },
+      child: Stack(
+        children: [
+          TickerMode(
+            enabled: share == null,
+            child: Offstage(offstage: share != null, child: const AppGate()),
+          ),
+          if (share != null) const ShareView(),
+        ],
+      ),
     );
   }
 }

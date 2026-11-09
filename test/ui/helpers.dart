@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:ftube/config/providers.dart';
 import 'package:ftube/data/services/android/ffmpeg_kit_runner.dart';
+import 'package:ftube/data/services/android/share_link_service.dart';
 import 'package:ftube/data/services/android/storage_permission_service.dart';
 import 'package:ftube/data/services/android/yt_dlp_bridge.dart';
 import 'package:ftube/data/services/binaries/binary_catalog.dart';
@@ -101,6 +102,9 @@ class TestEnv {
   final pickerCalls = <String?>[];
   Completer<String?>? defaultDir;
 
+  /// Shares from other apps; none by default.
+  ShareLinkService? share;
+
   /// Makes the default folder and app version lookups fail.
   bool failLookups = false;
 
@@ -121,6 +125,7 @@ class TestEnv {
     ),
     ffmpegRunnerProvider.overrideWithValue(ffmpeg),
     ytDlpBridgeProvider.overrideWithValue(platform.isDesktop ? null : ytDlp),
+    shareLinkServiceProvider.overrideWithValue(share),
     defaultDownloadDirProvider.overrideWith((ref) async {
       if (failLookups) throw StateError('no downloads folder');
       return defaultDir?.future ?? '/home/me/Downloads/Ftube';

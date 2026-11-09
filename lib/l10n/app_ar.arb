@@ -155,5 +155,14 @@
   "bgCancelAll": "إلغاء الكل",
   "bgFinished": "{count, plural, zero{لم يكتمل أي تنزيل} one{اكتمل تنزيل واحد} two{اكتمل تنزيلان} few{اكتملت {count} تنزيلات} many{اكتمل {count} تنزيلًا} other{اكتمل {count} تنزيل}}",
   "bgFailed": "{count, plural, zero{لم يفشل أي تنزيل} one{فشل تنزيل واحد} two{فشل تنزيلان} few{فشلت {count} تنزيلات} many{فشل {count} تنزيلًا} other{فشل {count} تنزيل}}",
-  "bgTimedOut": "أوقف Android التنزيلات في الخلفية لهذا اليوم. ستستمر ما دام Ftube مفتوحًا."
+  "bgTimedOut": "أوقف Android التنزيلات في الخلفية لهذا اليوم. ستستمر ما دام Ftube مفتوحًا.",
+  "shareVideo": "فيديو",
+  "shareAudio": "صوت",
+  "shareFormat": "الصيغة",
+  "shareFormatAuto": "تلقائي",
+  "shareStarted": "بدأ التنزيل",
+  "shareNoLink": "النص المُشارك لا يحتوي على رابط.",
+  "shareNoAccess": "يحتاج Ftube إلى الوصول إلى التخزين لحفظ التنزيلات. افتح Ftube للسماح بذلك.",
+  "shareOpenApp": "فتح Ftube",
+  "shareClose": "إغلاق"
 }

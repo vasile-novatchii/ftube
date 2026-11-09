@@ -321,5 +321,17 @@
       }
     }
   },
-  "bgTimedOut": "Android paused background downloads for today. They continue while Ftube is open."
+  "bgTimedOut": "Android paused background downloads for today. They continue while Ftube is open.",
+  "shareVideo": "Video",
+  "shareAudio": "Audio",
+  "shareFormat": "Format",
+  "shareFormatAuto": "Automatic",
+  "shareStarted": "Download started",
+  "@shareStarted": {
+    "description": "Toast over the sharing app after the share popup queued a download."
+  },
+  "shareNoLink": "The shared text has no link.",
+  "shareNoAccess": "Ftube needs storage access to save downloads. Open Ftube to allow it.",
+  "shareOpenApp": "Open Ftube",
+  "shareClose": "Close"
 }

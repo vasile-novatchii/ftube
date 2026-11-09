@@ -40,7 +40,7 @@ flowchart TD
   other -->|"ACTION_SEND EXTRA_TEXT"| manifest --> share
   appk --> share
   appk --> main
-  share -->|"show(url) / pending()"| chan --> svc --> sess --> root --> view
+  share -->|"show(text) / pending()"| chan --> svc --> sess --> root --> view
   view --> starter
   home --> starter
   starter -->|enqueue| repo
@@ -111,9 +111,9 @@ sequenceDiagram
   end
   alt engine just created (cold start)
     E->>S: pending()
-    S-->>E: url, then cleared
+    S-->>E: text, then cleared
   else engine already running
-    S->>E: show(url)
+    S->>E: show(text)
   end
   E->>E: shareSession = url, ShareView on top
   E->>Q: Download: enqueue (part 1 service starts)
@@ -124,8 +124,8 @@ sequenceDiagram
   M->>E: attach, AppShell shown as it was
 ```
 
-- Pull plus push, so a cold-start link isn't lost before Dart has registered its handler. `pending()` returns the link only once.
-- A second share while the popup is open replaces its link (`onNewIntent` -> `show(url)`).
+- Pull plus push, so a cold-start link isn't lost before Dart has registered its handler. `pending()` returns the shared text only once.
+- A second share while the popup is open replaces its link (`onNewIntent` -> `show(text)`).
 - `shareSession` is cleared when `ShareActivity` is destroyed, even without `close` (for example when the system kills it), through `dismissed` from Kotlin.
 
 **How a link is pulled out of the shared text**
@@ -148,12 +148,12 @@ flowchart TD
 - D-49: `ShareActivity` is a separate `FlutterActivity` with `getCachedEngineId() = "ftube"`, `BackgroundMode.transparent`, a translucent no-title theme, `excludeFromRecents="true"` and `taskAffinity=""`, and it handles only `ACTION_SEND` with `text/plain`. `MainActivity` keeps `singleTop` and the launcher entry. There are no `ACTION_VIEW` deep links, so Ftube doesn't take over links meant for the YouTube app - like NewPipe, it only adds a share target.
 - D-50: the Dart root is `Stack(Offstage(offstage: share != null, child: AppGate()), if (share != null) ShareView())`. The app's widget tree stays mounted, so the tab, Home's text field and scroll positions survive a popup.
 - D-51: `MainActivity` overrides `detachFromFlutterEngine()` to set `engineLost`, and on `onStart` with `engineLost` calls `recreate()`, which attaches it to the same cached engine. Dart state lives in providers and is not affected. Build this first as a spike (R-26).
-- D-52: Kotlin extracts the URL (section 3), so Dart only gets `String?` links. The channel contract:
+- D-52: Kotlin passes the raw shared text and Dart extracts the link (`extractLink`: first http(s) link, trailing punctuation dropped), so the rule lives in one place and is unit-tested. The channel contract:
 
   | Direction | Method | Args | Returns / effect |
   |---|---|---|---|
-  | Dart → Kotlin | `pending` | - | `{url: String?}` or `null` when nothing is waiting, cleared after reading |
-  | Kotlin → Dart | `show` | `{url: String?}` | opens or replaces the popup |
+  | Dart → Kotlin | `pending` | - | `{text: String?}` or `null` when nothing is waiting, cleared after reading |
+  | Kotlin → Dart | `show` | `{text: String?}` | opens or replaces the popup |
   | Kotlin → Dart | `dismissed` | - | `ShareActivity` was destroyed, clears the session |
   | Dart → Kotlin | `close` | `{toast: String?}` | shows the toast, if any, then `finish()` |
   | Dart → Kotlin | `openApp` | - | starts `MainActivity`, then `finish()` |
@@ -165,7 +165,7 @@ flowchart TD
 
 | Level | Covers | Tools |
 |---|---|---|
-| Unit | URL extraction: bare link, "Title https://...", trailing punctuation, no link, two links (first wins) | Kotlin logic mirrored in a Dart helper, `test` |
+| Unit | URL extraction: bare link, "Title https://...", trailing punctuation, no link, two links (first wins) | `extractLink`, `test` |
 | Unit | `ShareLinkService`: `pending` once, pushed `show` and `dismissed`, unknown methods ignored | mock `MethodChannel` |
 | Unit | `ShareViewModel`: loading, ready, failed and retry, default preset from settings, Download calls `DownloadStarter` and `close` | `ProviderContainer`, fake `MediaService`, mock channel |
 | Unit | `DownloadStarter`: storage blocked, no folder, `+ba` for video-only, same request Home sent before the extraction | fake repository |

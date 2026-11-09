@@ -155,5 +155,14 @@
   "bgCancelAll": "Отменить все",
   "bgFinished": "{count, plural, one{{count} загрузка завершена} few{{count} загрузки завершены} many{{count} загрузок завершено} other{{count} загрузки завершено}}",
   "bgFailed": "{count, plural, one{{count} загрузка не удалась} few{{count} загрузки не удались} many{{count} загрузок не удалось} other{{count} загрузки не удалось}}",
-  "bgTimedOut": "Android приостановил фоновые загрузки на сегодня. Они продолжатся, пока Ftube открыт."
+  "bgTimedOut": "Android приостановил фоновые загрузки на сегодня. Они продолжатся, пока Ftube открыт.",
+  "shareVideo": "Видео",
+  "shareAudio": "Аудио",
+  "shareFormat": "Формат",
+  "shareFormatAuto": "Автоматически",
+  "shareStarted": "Загрузка началась",
+  "shareNoLink": "В отправленном тексте нет ссылки.",
+  "shareNoAccess": "Ftube нужен доступ к хранилищу, чтобы сохранять загрузки. Откройте Ftube, чтобы разрешить его.",
+  "shareOpenApp": "Открыть Ftube",
+  "shareClose": "Закрыть"
 }
