@@ -72,50 +72,12 @@ class _Content extends ConsumerWidget {
         actions: [close(l10n.shareClose), openApp],
       );
     }
-    if (state.error case final error?) {
-      return _Layout(
-        body: Text(
-          error is NoDownloadFolder
-              ? l10n.homeNoFolder
-              : l10n.errorMessage(error),
-          key: const Key('share.error'),
-          style: TextStyle(color: theme.colorScheme.error),
-        ),
-        actions: [
-          close(l10n.shareClose),
-          FilledButton(
-            key: const Key('share.retry'),
-            onPressed: () => unawaited(vm.retry()),
-            child: Text(l10n.retry),
-          ),
-        ],
-      );
-    }
-    final info = state.info;
-    if (info == null) {
-      return _Layout(
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              state.url!,
-              key: const Key('share.url'),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            const LinearProgressIndicator(),
-          ],
-        ),
-        actions: [close(l10n.cancel)],
-      );
-    }
+    final error = state.error;
     return _Layout(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          MediaInfoCard(info: info, titleKey: const Key('share.title')),
+          MediaInfoCard(info: state.shown!, titleKey: const Key('share.title')),
           const SizedBox(height: 16),
           SegmentedButton<bool>(
             key: const Key('share.tabs'),
@@ -148,7 +110,16 @@ class _Content extends ConsumerWidget {
                 ),
             ],
           ),
-          if (state.formats.isNotEmpty) ...[
+          if (state.fetching) ...[
+            const SizedBox(height: 12),
+            Text(
+              l10n.shareLoadingFormats,
+              key: const Key('share.loading'),
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            const LinearProgressIndicator(),
+          ] else if (state.formats.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(l10n.shareFormat, style: theme.textTheme.titleSmall),
             DropdownButton<String?>(
@@ -169,10 +140,26 @@ class _Content extends ConsumerWidget {
               onChanged: vm.selectFormat,
             ),
           ],
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              error is NoDownloadFolder
+                  ? l10n.homeNoFolder
+                  : l10n.errorMessage(error),
+              key: const Key('share.error'),
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
+          ],
         ],
       ),
       actions: [
         close(l10n.cancel),
+        if (error != null)
+          OutlinedButton(
+            key: const Key('share.retry'),
+            onPressed: () => unawaited(vm.retry()),
+            child: Text(l10n.retry),
+          ),
         FilledButton.icon(
           key: const Key('share.download'),
           onPressed: state.canDownload

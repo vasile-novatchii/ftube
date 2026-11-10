@@ -207,18 +207,33 @@ void main() {
       expect(env.media.fetched, isEmpty);
     });
 
-    testWidgets('shows the link while loading and errors with Retry', (
+    testWidgets('shows the whole popup while loading and errors with Retry', (
       tester,
     ) async {
       final pending = Completer<MediaInfo>();
       env.media.onFetch = (_) => pending.future;
       await pump(tester);
-      await share(tester, url);
-      expect(find.byKey(const Key('share.url')), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      await host.send('show', {'text': url, 'subject': 'Shared title'});
+      await tester.pump();
+      expect(find.text('Shared title'), findsOneWidget);
+      expect(find.byKey(const Key('share.tabs')), findsOneWidget);
+      expect(find.byKey(const Key('share.preset.best')), findsOneWidget);
+      expect(find.byKey(const Key('share.loading')), findsOneWidget);
+      expect(find.byKey(const Key('share.format')), findsNothing);
+      final download = tester.widget<ButtonStyleButton>(
+        find.byKey(const Key('share.download')),
+      );
+      expect(download.onPressed, isNotNull);
       pending.completeError(const Network());
       await tester.pump();
       expect(find.byKey(const Key('share.error')), findsOneWidget);
+      expect(find.text('Shared title'), findsOneWidget);
+      expect(
+        tester
+            .widget<ButtonStyleButton>(find.byKey(const Key('share.download')))
+            .onPressed,
+        isNull,
+      );
 
       env.media.onFetch = (_) async => info;
       await tap(tester, 'share.retry');

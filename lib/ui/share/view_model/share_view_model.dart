@@ -63,7 +63,13 @@ abstract class ShareState with _$ShareState {
 
     /// Null when the shared text had no link.
     String? url,
+
+    /// What is known before yt-dlp has loaded: the shared title and the
+    /// YouTube thumbnail (spec-v0.4-share D-64).
+    MediaInfo? preview,
     @Default(false) bool fetching,
+
+    /// The video as yt-dlp loaded it, with its formats.
     MediaInfo? info,
     Object? error,
 
@@ -93,8 +99,13 @@ abstract class ShareState with _$ShareState {
   MediaFormat? get selectedFormat =>
       formats.where((f) => f.id == formatId).firstOrNull;
 
+  /// The card's content: the loaded video, or the preview until then.
+  MediaInfo? get shown => info ?? preview;
+
+  /// Download works from the start with a chip (D-65); a fetch error turns
+  /// it off, since yt-dlp would fail the same way.
   bool get canDownload =>
-      info != null && !fetching && !noAccess && !queuing && error == null;
+      shown != null && !noAccess && !queuing && error == null;
 }
 
 /// The share popup: reads the shared link, lets the user pick a format and
@@ -107,15 +118,31 @@ class ShareViewModel extends _$ShareViewModel {
 
   @override
   ShareState build() {
-    final url = ref.watch(shareSessionProvider.select((r) => r))?.url;
+    final share = ref.watch(shareSessionProvider.select((r) => r));
+    final url = share?.url;
     final preset = _defaultPreset();
-    if (url != null) unawaited(Future.microtask(() => _load(++_seq, url)));
-    return ShareState(url: url, preset: preset, fetching: url != null);
+    if (url == null) return ShareState(preset: preset);
+    unawaited(Future.microtask(() => _load(++_seq, url)));
+    return ShareState(
+      url: url,
+      preset: preset,
+      fetching: true,
+      preview: MediaInfo(
+        url: url,
+        title: share?.subject ?? url,
+        thumbnailUrl: youtubeThumbnail(url),
+      ),
+    );
   }
 
+  /// Clears an error; loads the video again if it wasn't loaded.
   Future<void> retry() async {
     final url = state.url;
     if (url == null || state.fetching) return;
+    if (state.info != null) {
+      state = state.copyWith(error: null);
+      return;
+    }
     state = state.copyWith(fetching: true, error: null);
     await _load(++_seq, url);
   }
@@ -145,7 +172,7 @@ class ShareViewModel extends _$ShareViewModel {
 
   /// Queues the video and closes the popup with [toast].
   Future<void> download({required String toast}) async {
-    final info = state.info;
+    final info = state.shown;
     if (info == null || !state.canDownload) return;
     state = state.copyWith(queuing: true);
     try {

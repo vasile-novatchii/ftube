@@ -77,7 +77,9 @@ void main() {
       await host.show('Look at https://youtu.be/abc!');
       expect(state().url, url);
       expect(state().fetching, isTrue);
-      expect(state().canDownload, isFalse);
+      expect(state().info, isNull);
+      expect(state().shown?.title, url);
+      expect(state().canDownload, isTrue);
       await pumpEventQueue();
       expect(env.media.fetched, [url]);
       expect(state().info, info);
@@ -85,6 +87,55 @@ void main() {
       expect(state().preset, QualityPreset.best);
       expect(state().audio, isFalse);
       expect(state().canDownload, isTrue);
+    });
+
+    test('shows the shared title and thumbnail before the fetch', () async {
+      final pending = Completer<MediaInfo>();
+      env.media.onFetch = (_) => pending.future;
+      await host.send('show', {
+        'text': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'subject': 'Shared title',
+      });
+      expect(state().shown?.title, 'Shared title');
+      expect(
+        state().shown?.thumbnailUrl,
+        'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+      );
+      expect(state().formats, isEmpty);
+      pending.complete(info);
+      await pumpEventQueue();
+      expect(state().shown, info);
+    });
+
+    test(
+      'Download before the fetch queues the preview with the chip',
+      () async {
+        final pending = Completer<MediaInfo>();
+        env.media.onFetch = (_) => pending.future;
+        await host.send('show', {'text': url, 'subject': 'Shared title'});
+        await pumpEventQueue();
+        vm().selectPreset(QualityPreset.p720);
+        await vm().download(toast: 't');
+        final job = jobs().single;
+        expect(job.title, 'Shared title');
+        expect(job.request.url, url);
+        expect(job.request.preset, QualityPreset.p720);
+        expect(job.request.formatId, isNull);
+        expect(c.read(shareSessionProvider), isNull);
+        pending.complete(info);
+        await pumpEventQueue();
+      },
+    );
+
+    test('retry after a loaded video only clears the error', () async {
+      await share(url);
+      env.failLookups = true;
+      c.invalidate(downloadDirectoryProvider);
+      await vm().download(toast: 't');
+      expect(state().error, isA<NoDownloadFolder>());
+      await vm().retry();
+      expect(state().error, isNull);
+      expect(env.media.fetched, [url]);
     });
 
     test('a share without a link fetches nothing', () async {

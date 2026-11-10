@@ -334,6 +334,50 @@ void main() {
     });
   });
 
+  group('pause', () {
+    test(
+      'kills the process, keeps the partial files, cancel drops them',
+      () async {
+        final process = FakeProcess();
+        onStart(process);
+        final result = service.download(request(QualityPreset.best)).toList();
+        await process.started;
+        await pumpEventQueue();
+        File(p.join(temp.path, 'j1', 'media.mp4.part')).writeAsStringSync('x');
+
+        await service.pause('j1');
+        await service.pause('j1');
+
+        await expectLater(result, throwsA(isA<Paused>()));
+        expect(process.killCount, 1);
+        expect(
+          File(p.join(temp.path, 'j1', 'media.mp4.part')).existsSync(),
+          isTrue,
+        );
+
+        await service.cancel('j1');
+        expect(Directory(p.join(temp.path, 'j1')).existsSync(), isFalse);
+      },
+    );
+
+    test('cancel after pause still cancels', () async {
+      final process = FakeProcess();
+      onStart(process);
+      final result = service.download(request(QualityPreset.best)).toList();
+      await process.started;
+      await pumpEventQueue();
+      await service.pause('j1');
+      await service.cancel('j1');
+      await expectLater(result, throwsA(isA<Cancelled>()));
+      await pumpEventQueue();
+      expect(temp.listSync(), isEmpty);
+    });
+
+    test('ignores unknown ids', () async {
+      await service.pause('nope');
+    });
+  });
+
   group('convert', () {
     late File src;
     late File dst;

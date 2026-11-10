@@ -298,6 +298,29 @@ void main() {
       await pumpUntil(tempIsEmpty);
     });
 
+    test('pause stops yt-dlp and keeps the partial files', () async {
+      ytDlp.hold = Completer<void>();
+      final events = <JobProgress>[];
+      final done = Completer<Object>();
+      service
+          .download(request(QualityPreset.best))
+          .listen(events.add, onError: done.complete);
+
+      await pumpUntil(() => events.isNotEmpty);
+      final part = File(p.join(temp.path, 'j1', 'media.mp4.part'))
+        ..writeAsStringSync('x');
+      await service.pause('j1');
+      await service.pause('j1');
+
+      expect(await done.future, isA<Paused>());
+      expect(ytDlp.cancelled, ['j1']);
+      expect(part.existsSync(), isTrue);
+
+      await service.pause('nope');
+      await service.cancel('j1');
+      expect(tempIsEmpty(), isTrue);
+    });
+
     test('cancel during ffmpeg cancels the session', () async {
       ffmpeg.hold = Completer<void>();
       final done = Completer<Object>();

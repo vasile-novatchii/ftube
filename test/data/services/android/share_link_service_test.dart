@@ -40,6 +40,36 @@ void main() {
     });
   });
 
+  group('youtubeThumbnail', () {
+    const thumb = 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg';
+
+    test('derives the thumbnail from YouTube video links', () {
+      for (final url in [
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=5',
+        'https://m.youtube.com/watch?v=dQw4w9WgXcQ',
+        'https://youtu.be/dQw4w9WgXcQ?si=x',
+        'https://youtube.com/shorts/dQw4w9WgXcQ',
+        'https://www.youtube.com/live/dQw4w9WgXcQ',
+        'https://music.youtube.com/watch?v=dQw4w9WgXcQ',
+      ]) {
+        expect(youtubeThumbnail(url), thumb, reason: url);
+      }
+    });
+
+    test('has none for other links', () {
+      for (final url in [
+        'https://vimeo.com/1',
+        'https://www.youtube.com/playlist?list=PL1',
+        'https://www.youtube.com/watch',
+        'https://youtu.be/short',
+        'https://youtu.be/',
+        'not a url ::',
+      ]) {
+        expect(youtubeThumbnail(url), isNull, reason: url);
+      }
+    });
+  });
+
   group('ShareLinkService', () {
     late ShareHost host;
     late List<ShareRequest?> events;
@@ -63,6 +93,16 @@ void main() {
       expect(events.single?.url, 'https://youtu.be/abc');
       expect(host.calls.single.method, 'pending');
       expect(host.pending, isNull);
+    });
+
+    test('keeps the shared subject, trimmed, or null when empty', () async {
+      await host.service.start();
+      await host.send('show', {'text': 'https://youtu.be/a', 'subject': ' T '});
+      expect(host.service.current?.subject, 'T');
+      await host.send('show', {'text': 'https://youtu.be/a', 'subject': ' '});
+      expect(host.service.current?.subject, isNull);
+      await host.show('https://youtu.be/a');
+      expect(host.service.current?.subject, isNull);
     });
 
     test('has no share when none is pending', () async {

@@ -22,7 +22,9 @@ class ShareChannel(private val context: Context, messenger: BinaryMessenger) {
 
     var activity: ShareActivity? = null
 
-    private class Shared(val text: String?)
+    private class Shared(val text: String?, val subject: String?) {
+        fun toMap() = mapOf("text" to text, "subject" to subject)
+    }
 
     init {
         channel.setMethodCallHandler { call, result ->
@@ -30,7 +32,7 @@ class ShareChannel(private val context: Context, messenger: BinaryMessenger) {
                 "pending" -> {
                     val shared = pending
                     pending = null
-                    result.success(shared?.let { mapOf("text" to it.text) })
+                    result.success(shared?.toMap())
                 }
                 "close" -> {
                     call.argument<String>("toast")?.let {
@@ -52,13 +54,16 @@ class ShareChannel(private val context: Context, messenger: BinaryMessenger) {
         }
     }
 
-    /** Opens the popup for [text], or replaces the link it shows. */
-    fun show(text: String?) {
-        val shared = Shared(text)
+    /**
+     * Opens the popup for [text], or replaces the link it shows. [subject]
+     * is the shared title, shown before yt-dlp has loaded (D-63).
+     */
+    fun show(text: String?, subject: String?) {
+        val shared = Shared(text, subject)
         pending = shared
         channel.invokeMethod(
             "show",
-            mapOf("text" to text),
+            shared.toMap(),
             object : MethodChannel.Result {
                 override fun success(result: Any?) {
                     if (pending === shared) pending = null

@@ -302,6 +302,134 @@ void main() {
     });
   });
 
+  group('pause and resume', () {
+    test('a queued job pauses without touching the service', () async {
+      add('a');
+      add('b');
+      final c = add('c');
+      await repo.pause(c.id);
+      expect(status(c), JobStatus.paused);
+      expect(media.paused, isEmpty);
+      expect(repo.activeCount, 2);
+    });
+
+    test('a running job keeps its progress and frees its slot', () async {
+      repo.maxConcurrent = 1;
+      final a = add('a');
+      final b = add('b');
+      await settle();
+      media.progress(a.id, 0.4);
+      await settle();
+      await repo.pause(a.id);
+      await settle();
+      expect(status(a), JobStatus.paused);
+      expect(repo.job(a.id)!.progress?.fraction, 0.4);
+      expect(repo.job(a.id)!.error, isNull);
+      expect(media.paused, [a.id]);
+      expect(status(b), JobStatus.running);
+    });
+
+    test('resume puts the job back in its place', () async {
+      repo.maxConcurrent = 1;
+      final a = add('a');
+      final b = add('b');
+      final c = add('c');
+      await settle();
+      await repo.pause(a.id);
+      await settle();
+      repo.resume(a.id);
+      expect(status(a), JobStatus.queued);
+      media.finish(b.id);
+      await settle();
+      // a was queued before c, so it runs first, with the same id.
+      expect(status(a), JobStatus.running);
+      expect(status(c), JobStatus.queued);
+      expect(media.started.where((id) => id == a.id), hasLength(2));
+    });
+
+    test('resume waits for the paused run to stop', () async {
+      media.endOnCancel = false;
+      final a = add('a');
+      await settle();
+      await repo.pause(a.id);
+      repo.resume(a.id);
+      expect(status(a), JobStatus.queued);
+      expect(media.started, [a.id]);
+      media.fail(a.id, const Paused());
+      await settle();
+      expect(status(a), JobStatus.running);
+      expect(media.started, [a.id, a.id]);
+    });
+
+    test('pauseAll and resumeAll', () async {
+      final jobs = [add('a'), add('b'), add('c')];
+      await repo.pauseAll();
+      await settle();
+      expect(jobs.map(status).toSet(), {JobStatus.paused});
+      expect(repo.activeCount, 0);
+      repo.resumeAll();
+      await settle();
+      expect(jobs.map(status), [
+        JobStatus.running,
+        JobStatus.running,
+        JobStatus.queued,
+      ]);
+    });
+
+    test('ignores jobs that cannot be paused or resumed', () async {
+      final a = add('a');
+      await settle();
+      media.finish(a.id);
+      await settle();
+      await repo.pause(a.id);
+      await repo.pause('nope');
+      repo
+        ..resume(a.id)
+        ..resume('nope');
+      expect(status(a), JobStatus.completed);
+      expect(media.paused, isEmpty);
+    });
+
+    test('cancel and remove of a paused job drop its files', () async {
+      final a = add('a');
+      final b = add('b');
+      await settle();
+      await repo.pause(a.id);
+      await repo.pause(b.id);
+      await settle();
+      await repo.cancel(a.id);
+      expect(status(a), JobStatus.cancelled);
+      repo.remove(b.id);
+      expect(repo.job(b.id), isNull);
+      expect(media.cancelled, [a.id, b.id]);
+    });
+
+    test(
+      'cancel of a resumed job that has not restarted drops its files',
+      () async {
+        repo.maxConcurrent = 1;
+        final a = add('a');
+        add('b');
+        await settle();
+        media.progress(a.id, 0.5);
+        await settle();
+        await repo.pause(a.id);
+        await settle();
+        repo.resume(a.id);
+        await repo.cancel(a.id);
+        expect(media.cancelled, [a.id]);
+      },
+    );
+
+    test('a Paused error from the service pauses a running job', () async {
+      final a = add('a');
+      await settle();
+      media.fail(a.id, const Paused());
+      await settle();
+      expect(status(a), JobStatus.paused);
+    });
+  });
+
   test('dispose stops running jobs and rejects new ones', () async {
     final job = add();
     var closed = false;

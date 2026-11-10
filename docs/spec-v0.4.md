@@ -9,7 +9,7 @@ Builds on [spec-v0.3.md](spec-v0.3.md). Decision, DoD and risk IDs continue its 
   - A Kotlin `DownloadService` runs as a `dataSync` foreground service whenever the queue has active jobs. It holds a partial wake lock and a Wi-Fi lock, and shows one ongoing progress notification.
   - The Flutter engine moves to a cached engine owned by a new `FtubeApplication`, so it outlives the activity. Download logic stays in Dart, unchanged. The share popup in part 2 attaches to the same engine.
   - Dart drives the service through a new `io.github.infvyr.ftube/downloads` channel, from `DownloadRepository.changes`.
-- **User-visible:** a "Downloading 2 of 5 - 43%" notification with Cancel all, and a "5 downloads finished" (or "1 failed") notification at the end. Tapping either opens Home.
+- **User-visible:** a "Downloading 2 of 5 - 43%" notification with Pause all and Cancel all (Pause all added after the device test, section 8), and a "5 downloads finished" (or "1 failed") notification at the end. Tapping either opens Home.
 - **Main risks:** Android 15 caps `dataSync` services at 6 hours a day (R-22), and some vendors (Xiaomi, Samsung) kill foreground services anyway (R-23).
 
 ## 1. What changes
@@ -139,5 +139,89 @@ sequenceDiagram
 ## 7. Non-goals (v0.4)
 
 - Keeping the queue across a process kill, a reboot or an app update.
-- Per-job notifications or pause and resume.
+- Per-job notifications. (Pause and resume moved into v0.4, section 8.)
+- Resuming a paused job after a process kill: the queue is still in memory only.
 - Background downloads on desktop after the window closes, or running in the tray.
+
+## 8. Pause and resume (added after the device test)
+
+The notification had only Cancel all. Now a running queue can be paused and resumed from the notification (all jobs) and from the queue screen (one job). A paused job keeps its partial download and continues where it stopped.
+
+**Job states, with paused**
+
+```mermaid
+stateDiagram-v2
+  [*] --> queued
+  queued --> running
+  queued --> paused: Pause
+  running --> paused: Pause (yt-dlp stopped, temp dir kept)
+  paused --> queued: Resume (same jobId, same temp dir)
+  running --> completed
+  running --> failed
+  queued --> cancelled
+  running --> cancelled
+  paused --> cancelled: Cancel (temp dir deleted)
+  failed --> queued: Retry
+  cancelled --> queued: Retry
+```
+
+**Pause all and Resume all from the notification**
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant S as DownloadService
+  participant B as BackgroundDownloads
+  participant R as DownloadRepository
+  participant M as MediaService
+  U->>S: Pause all (notification action)
+  S->>B: pauseAll
+  B->>R: pauseAll()
+  R->>M: pause(jobId) for running jobs
+  M-->>R: stream ends with Paused, temp dir kept
+  R-->>B: changes: 0 active, 2 paused
+  B->>S: paused(title, text)
+  S->>S: stopForeground, release locks,<br/>post "2 downloads paused" with Resume all / Cancel all
+  U->>S: Resume all
+  S->>S: startForeground (provisional notification)
+  S->>B: resumeAll
+  B->>R: resumeAll()
+  R->>M: download(same jobId), yt-dlp continues the .part file
+  B->>S: update(summary)
+```
+
+- D-67: `JobStatus.paused`, not active (`isActive` stays queued or running), so `_pump` skips it and it doesn't keep the service running. Its progress is kept for the row and the summary.
+- D-68: `MediaService.pause(jobId)` stops yt-dlp (or ffmpeg) like `cancel`, but ends the stream with a new `Paused` error and keeps `tempRoot/<jobId>`. `download` reuses an existing temp dir, and yt-dlp continues `.part` files by default (no `--no-continue` in `yt_dlp_args.dart`) [proof: lib/data/services/desktop/yt_dlp_args.dart:122-140]. A pause during the mux or convert step restarts only that step; the finished stream files are already in the temp dir {unverified}. `cancel` and `remove` of a paused job delete its temp dir. Desktop gets the same, since the queue screen is shared.
+- D-69: `DownloadRepository` gets `pause(id)`, `resume(id)`, `pauseAll()` and `resumeAll()`. Resume sets the job back to queued in its old place in the list, so `_pump` order is unchanged.
+- D-70: the notification has Pause all and Cancel all while running. When nothing is active but some jobs are paused, the service stops being a foreground service and releases its locks, and a normal (not ongoing, swipeable) "N downloads paused" notification with Resume all and Cancel all is left. Resume all uses `PendingIntent.getForegroundService`, which may start a foreground service from the background because the user tapped a notification {unverified}; the service shows a provisional notification at once and Dart replaces it.
+- D-71: channel additions to D-45:
+
+  | Direction | Method | Args | Notes |
+  |---|---|---|---|
+  | Dart → Kotlin | `update` | adds `strings.pauseAll`, `strings.resumeAll` | |
+  | Dart → Kotlin | `paused` | `{title: String, text: String}` | stops the service, posts the paused notification |
+  | Kotlin → Dart | `pauseAll` | - | from the notification action |
+  | Kotlin → Dart | `resumeAll` | - | from the paused notification; Dart answers with `update` or, with nothing to resume, `stop` |
+
+- D-72: the queue row shows Pause for queued and running jobs and Resume for paused ones, next to Cancel, and the status line reads "Paused - 43%". New strings (Pause, Resume, Pause all, Resume all, Paused, "N downloads paused") go into all six ARB files.
+
+**Testing (pause)**
+
+| Level | Covers | Tools |
+|---|---|---|
+| Unit | Repository: pause queued and running, resume keeps the order, pauseAll/resumeAll, cancel and remove of a paused job, paused jobs don't count as active | `FakeMediaService` |
+| Unit | Media services: pause keeps the temp dir and ends with `Paused`, cancel of a paused job deletes it, a resumed download reuses it | fake yt-dlp bridge / process |
+| Unit | `BackgroundDownloads`: `paused` when only paused jobs are left, `pauseAll` and `resumeAll` calls, `stop` when resume finds nothing | mock channel |
+| Widget | Queue row Pause/Resume buttons and the "Paused" status | `ProviderScope` overrides |
+| Manual | Pause all mid-download, wait, Resume all from the paused notification with Ftube in the background; check the file is complete and the download didn't restart from 0 | Android 12 device |
+
+**Definition of Done (pause)**
+
+- DoD-43: The progress notification has Pause all; after it, the notification turns into a swipeable "paused" one with Resume all and Cancel all, and no foreground service or lock is left.
+- DoD-44: Resume all, from the notification or the app, continues each job from its partial file, and the finished file plays.
+- DoD-45: The queue screen pauses and resumes a single job, on Android and desktop; cancelling a paused job removes its partial files.
+
+**Risks (pause)**
+
+- R-31: If Android kills the process while jobs are paused, the queue is gone (non-goal) but the paused notification may stay. Resume all then starts an empty Dart queue, which answers `stop` and clears it. Leftover `tempRoot/<jobId>` dirs are not cleaned yet; clearing `tempRoot` at startup fixes that.
+- R-32: Some sites or formats don't support HTTP range requests, so a resumed job starts from 0. It still completes.

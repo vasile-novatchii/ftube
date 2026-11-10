@@ -5,10 +5,16 @@ import 'package:flutter/services.dart';
 /// A share from another app (spec-v0.4-share). Each share is a new object,
 /// so sharing the same link again still restarts the popup.
 class ShareRequest {
-  ShareRequest(String? text) : url = extractLink(text);
+  ShareRequest(String? text, {String? subject})
+    : url = extractLink(text),
+      subject = (subject?.trim().isEmpty ?? true) ? null : subject!.trim();
 
   /// The first http(s) link in the shared text, or null when it has none.
   final String? url;
+
+  /// The shared title (`EXTRA_SUBJECT`), shown before yt-dlp has loaded
+  /// (spec-v0.4-share D-63).
+  final String? subject;
 }
 
 final _link = RegExp(r'https?://\S+', caseSensitive: false);
@@ -22,6 +28,28 @@ String? extractLink(String? text) {
   if (match == null) return null;
   final url = match[0]!.replaceFirst(_trailing, '');
   return Uri.tryParse(url)?.host.isNotEmpty == true ? url : null;
+}
+
+final _youtubeId = RegExp(r'^[\w-]{11}$');
+
+/// The thumbnail of a YouTube video link, derived from its id without a
+/// network call (spec-v0.4-share D-64), or null for other links.
+String? youtubeThumbnail(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return null;
+  final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^(www|m)\.'), '');
+  final segments = uri.pathSegments;
+  final id = switch (host) {
+    'youtu.be' => segments.firstOrNull,
+    'youtube.com' || 'music.youtube.com' => switch (segments) {
+      ['watch', ...] => uri.queryParameters['v'],
+      ['shorts' || 'live' || 'embed', final id, ...] => id,
+      _ => null,
+    },
+    _ => null,
+  };
+  if (id == null || !_youtubeId.hasMatch(id)) return null;
+  return 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
 }
 
 /// Talks to `ShareChannel.kt`: receives shares and closes the popup
@@ -48,7 +76,7 @@ class ShareLinkService {
       final pending = await _channel.invokeMapMethod<String, Object?>(
         'pending',
       );
-      if (pending != null) _set(ShareRequest(pending['text'] as String?));
+      if (pending != null) _set(_request(pending));
     } on Object {
       // No share target on this platform.
     }
@@ -69,8 +97,7 @@ class ShareLinkService {
   Future<Object?> _onCall(MethodCall call) async {
     switch (call.method) {
       case 'show':
-        final args = call.arguments as Map<Object?, Object?>?;
-        _set(ShareRequest(args?['text'] as String?));
+        _set(_request(call.arguments as Map<Object?, Object?>?));
       case 'dismissed':
         _set(null);
       default:
@@ -78,6 +105,11 @@ class ShareLinkService {
     }
     return null;
   }
+
+  static ShareRequest _request(Map<Object?, Object?>? args) => ShareRequest(
+    args?['text'] as String?,
+    subject: args?['subject'] as String?,
+  );
 
   void _set(ShareRequest? request) {
     _current = request;

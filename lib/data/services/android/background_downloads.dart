@@ -34,7 +34,8 @@ class BackgroundSummary {
 /// process alive while jobs run (spec-v0.4 D-40, D-45, D-46).
 ///
 /// A session starts with the first active job and ends when none is left.
-/// Updates are throttled to one a second.
+/// While only paused jobs are left, the service stops and a paused
+/// notification stays (D-70). Updates are throttled to one a second.
 class BackgroundDownloads {
   BackgroundDownloads({
     required DownloadRepository repository,
@@ -76,14 +77,26 @@ class BackgroundDownloads {
   }
 
   Future<Object?> _onCall(MethodCall call) async {
-    if (call.method != 'cancelAll') {
-      throw MissingPluginException(call.method);
+    switch (call.method) {
+      case 'cancelAll':
+        final ids = [
+          for (final j in _repo.jobs)
+            if (j.status.isActive || j.status.canResume) j.id,
+        ];
+        await Future.wait(ids.map(_repo.cancel));
+      case 'pauseAll':
+        await _repo.pauseAll();
+      case 'resumeAll':
+        // Kotlin started the service for this; with nothing to resume it
+        // must stop again.
+        if (_repo.jobs.any((j) => j.status.canResume)) {
+          _repo.resumeAll();
+        } else {
+          _stop();
+        }
+      default:
+        throw MissingPluginException(call.method);
     }
-    final ids = [
-      for (final j in _repo.jobs)
-        if (j.status.isActive) j.id,
-    ];
-    await Future.wait(ids.map(_repo.cancel));
     return null;
   }
 
@@ -99,7 +112,8 @@ class BackgroundDownloads {
       }
     }
     if (activeJobs.isEmpty) {
-      _stop();
+      final paused = jobs.where((j) => j.status.canResume).toList();
+      paused.isEmpty ? _stop() : _paused(paused);
       return;
     }
     _pending = summarize(_session, activeJobs);
@@ -112,7 +126,9 @@ class BackgroundDownloads {
     List<DownloadJob> active,
   ) {
     final total = session.length;
-    final done = session.values.where((s) => !s.isActive).length;
+    final done = session.values
+        .where((s) => !s.isActive && s != JobStatus.paused)
+        .length;
     final running = active.where((j) => j.status == JobStatus.running);
     final fractions = running
         .map((j) => j.progress?.fraction)
@@ -153,8 +169,21 @@ class BackgroundDownloads {
         'progressChannel': l10n.bgChannelProgress,
         'resultChannel': l10n.bgChannelResult,
         'cancelAll': l10n.bgCancelAll,
+        'pauseAll': l10n.bgPauseAll,
+        'resumeAll': l10n.bgResumeAll,
         'timedOut': l10n.bgTimedOut,
       },
+    });
+  }
+
+  /// Only paused jobs are left: the service stops, the session goes on.
+  void _paused(List<DownloadJob> paused) {
+    _cooldown?.cancel();
+    _cooldown = null;
+    _pending = null;
+    _invoke('paused', {
+      'title': _l10n().bgPaused(paused.length),
+      'text': paused.first.title,
     });
   }
 

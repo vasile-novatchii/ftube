@@ -11,6 +11,7 @@ class FakeMediaService implements MediaService {
   final runs = <String, StreamController<JobProgress>>{};
   final started = <String>[];
   final cancelled = <String>[];
+  final paused = <String>[];
   final converts = <(String src, AudioTarget target, String dst, String id)>[];
 
   /// Runs a conversion instead of finishing it at once.
@@ -56,6 +57,12 @@ class FakeMediaService implements MediaService {
   Future<void> cancel(String jobId) async {
     cancelled.add(jobId);
     if (endOnCancel) fail(jobId, const Cancelled());
+  }
+
+  @override
+  Future<void> pause(String jobId) async {
+    paused.add(jobId);
+    if (endOnCancel) fail(jobId, const Paused());
   }
 
   /// Answers [fetchInfo]; the default throws [Network].

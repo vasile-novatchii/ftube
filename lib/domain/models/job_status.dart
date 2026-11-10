@@ -4,14 +4,18 @@ enum JobStatus {
   running,
   completed,
   failed,
-  cancelled;
+  cancelled,
+
+  /// Stopped by the user with its partial files kept (spec-v0.4 D-67).
+  paused;
 
   static const _transitions = <JobStatus, Set<JobStatus>>{
-    queued: {running, cancelled},
-    running: {running, completed, failed, cancelled},
+    queued: {running, cancelled, paused},
+    running: {running, completed, failed, cancelled, paused},
     completed: {},
     failed: {queued},
     cancelled: {queued},
+    paused: {queued, cancelled},
   };
 
   bool canTransitionTo(JobStatus next) => _transitions[this]!.contains(next);
@@ -20,8 +24,13 @@ enum JobStatus {
 
   bool get canCancel => canTransitionTo(cancelled);
 
-  bool get canRetry => canTransitionTo(queued);
+  bool get canRetry => this == failed || this == cancelled;
 
-  /// Completed, failed and cancelled jobs can be removed from the queue.
+  bool get canPause => isActive;
+
+  bool get canResume => this == paused;
+
+  /// Completed, failed, cancelled and paused jobs can be removed from the
+  /// queue.
   bool get canRemove => !isActive;
 }

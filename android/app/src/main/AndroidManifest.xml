@@ -60,6 +60,10 @@
             android:name=".DownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync"/>
+        <!-- Pause all and Cancel all from the notifications, D-70. -->
+        <receiver
+            android:name=".DownloadActionReceiver"
+            android:exported="false"/>
         <!-- Content URIs for opening and sharing library files, see MainActivity. -->
         <provider
             android:name="androidx.core.content.FileProvider"

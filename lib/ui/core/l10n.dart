@@ -69,6 +69,7 @@ extension AppLocalizationsLabels on AppLocalizations {
     JobStatus.completed => statusCompleted,
     JobStatus.failed => errorMessage(job.error ?? const Unexpected()),
     JobStatus.cancelled => statusCancelled,
+    JobStatus.paused => statusPaused,
   };
 
   /// A user-facing message for [error]. Technical details stay in logs.

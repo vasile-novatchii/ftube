@@ -169,6 +169,28 @@ void main() {
       expect(find.text('Queue (0)'), findsOneWidget);
     });
 
+    testWidgets('pause and resume a job', (tester) async {
+      await pump(tester);
+      final a = add('a');
+      await tester.pump();
+      progress(a, fraction: 0.43);
+      await tester.pump();
+
+      await tester.tap(key('queue.pause.${a.id}'));
+      await tester.pump();
+      expect(find.text('Paused · 43%'), findsOneWidget);
+      expect(env.media.paused, [a.id]);
+      expect(key('queue.pause.${a.id}'), findsNothing);
+      expect(key('queue.retry.${a.id}'), findsNothing);
+      expect(key('queue.cancel.${a.id}'), findsOneWidget);
+
+      await tester.tap(key('queue.resume.${a.id}'));
+      await tester.pump();
+      expect(find.text('Paused · 43%'), findsNothing);
+      expect(key('queue.pause.${a.id}'), findsOneWidget);
+      expect(env.media.started, [a.id, a.id]);
+    });
+
     testWidgets('a failed job shows the error and can be retried', (
       tester,
     ) async {

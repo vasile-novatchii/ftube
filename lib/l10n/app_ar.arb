@@ -164,5 +164,12 @@
   "shareNoLink": "النص المُشارك لا يحتوي على رابط.",
   "shareNoAccess": "يحتاج Ftube إلى الوصول إلى التخزين لحفظ التنزيلات. افتح Ftube للسماح بذلك.",
   "shareOpenApp": "فتح Ftube",
-  "shareClose": "إغلاق"
+  "shareClose": "إغلاق",
+  "queuePause": "إيقاف مؤقت",
+  "queueResume": "استئناف",
+  "statusPaused": "متوقف مؤقتًا",
+  "bgPauseAll": "إيقاف الكل مؤقتًا",
+  "bgResumeAll": "استئناف الكل",
+  "bgPaused": "{count, plural, zero{لا توجد تنزيلات متوقفة} one{تنزيل واحد متوقف مؤقتًا} two{تنزيلان متوقفان مؤقتًا} few{{count} تنزيلات متوقفة مؤقتًا} many{{count} تنزيلًا متوقفًا مؤقتًا} other{{count} تنزيل متوقف مؤقتًا}}",
+  "shareLoadingFormats": "جارٍ تحميل الصيغ…"
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -66,6 +68,7 @@ class _JobRow extends ConsumerWidget {
     final progress = job.progress;
     final running = job.status == JobStatus.running;
     final failed = job.status == JobStatus.failed;
+    final paused = job.status == JobStatus.paused;
     final id = job.id;
 
     final details = [
@@ -76,6 +79,8 @@ class _JobRow extends ConsumerWidget {
           l10n.speedPerSecond(formatBytes(speed.round())),
         if (progress.eta case final eta?) formatDuration(eta),
       ],
+      if (paused && progress?.fraction != null)
+        '${(progress!.fraction! * 100).floor()}%',
     ].join(' · ');
 
     Future<void> open() async {
@@ -102,7 +107,7 @@ class _JobRow extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyLarge,
                 ),
-                if (running) ...[
+                if (running || paused) ...[
                   const SizedBox(height: 4),
                   LinearProgressIndicator(value: progress?.fraction),
                 ],
@@ -135,6 +140,20 @@ class _JobRow extends ConsumerWidget {
               tooltip: l10n.queueRetry,
               icon: const Icon(Icons.refresh),
               onPressed: () => vm.retry(id),
+            ),
+          if (job.status.canPause)
+            IconButton(
+              key: Key('queue.pause.$id'),
+              tooltip: l10n.queuePause,
+              icon: const Icon(Icons.pause),
+              onPressed: () => unawaited(vm.pause(id)),
+            ),
+          if (job.status.canResume)
+            IconButton(
+              key: Key('queue.resume.$id'),
+              tooltip: l10n.queueResume,
+              icon: const Icon(Icons.play_arrow),
+              onPressed: () => vm.resume(id),
             ),
           if (job.status.canCancel)
             IconButton(

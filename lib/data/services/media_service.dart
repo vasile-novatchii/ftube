@@ -25,6 +25,12 @@ abstract interface class MediaService {
   });
 
   /// Stops the download or conversion with [jobId]. Its stream ends with a
-  /// `Cancelled` error. Unknown ids are ignored.
+  /// `Cancelled` error. For a job that isn't running, deletes the partial
+  /// files a [pause] kept.
   Future<void> cancel(String jobId);
+
+  /// Stops the download with [jobId] but keeps its partial files, so a new
+  /// [download] with the same id continues it (spec-v0.4 D-68). Its stream
+  /// ends with a `Paused` error. Unknown ids are ignored.
+  Future<void> pause(String jobId);
 }

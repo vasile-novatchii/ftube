@@ -4,10 +4,13 @@ import 'package:ftube/data/services/android/share_link_service.dart';
 
 /// Stands in for `ShareChannel.kt` and `ShareActivity.kt`.
 class ShareHost {
-  ShareHost({this.pending});
+  ShareHost({this.pending, this.subject});
 
   /// Text shared before Dart started; handed out once.
   String? pending;
+
+  /// The title shared with [pending].
+  String? subject;
 
   /// Like Android, ends the session once [ShareLinkService.close] or
   /// [ShareLinkService.openApp] closed the popup.
@@ -30,7 +33,7 @@ class ShareHost {
       case 'pending':
         final text = pending;
         pending = null;
-        return text == null ? null : {'text': text};
+        return text == null ? null : {'text': text, 'subject': subject};
       case 'close' || 'openApp':
         if (fail) throw PlatformException(code: 'gone');
         if (dismissOnClose) await dismissed();

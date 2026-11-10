@@ -85,8 +85,44 @@ class DownloadRepository {
     final job = _jobs[id];
     if (job == null || !job.status.canCancel) return;
     final wasRunning = job.status == JobStatus.running;
+    final wasPaused = job.status == JobStatus.paused;
+    // A paused job's partial files are deleted too, also once resumed.
     _set(job.copyWith(status: JobStatus.cancelled, error: const Cancelled()));
-    if (wasRunning) await _media.cancel(id);
+    if (wasRunning || wasPaused || job.progress != null) {
+      await _media.cancel(id);
+    }
+  }
+
+  /// Stops a queued or running job and keeps its partial files, so
+  /// [resume] continues it (spec-v0.4 D-69).
+  Future<void> pause(String id) async {
+    final job = _jobs[id];
+    if (job == null || !job.status.canPause) return;
+    final wasRunning = job.status == JobStatus.running;
+    _set(job.copyWith(status: JobStatus.paused));
+    if (wasRunning) await _media.pause(id);
+  }
+
+  /// Puts a paused job back in its place in the queue.
+  void resume(String id) {
+    _checkOpen();
+    final job = _jobs[id];
+    if (job == null || !job.status.canResume) return;
+    _set(job.copyWith(status: JobStatus.queued));
+    _pump();
+  }
+
+  /// Pauses every queued and running job.
+  Future<void> pauseAll() => Future.wait([
+    for (final j in _jobs.values.toList())
+      if (j.status.canPause) pause(j.id),
+  ]);
+
+  /// Resumes every paused job.
+  void resumeAll() {
+    for (final j in _jobs.values.toList()) {
+      if (j.status.canResume) resume(j.id);
+    }
   }
 
   /// Puts a failed or cancelled job back in the queue.
@@ -98,11 +134,12 @@ class DownloadRepository {
     _pump();
   }
 
-  /// Removes a completed, failed or cancelled job from the list.
+  /// Removes a completed, failed, cancelled or paused job from the list.
   void remove(String id) {
     final job = _jobs[id];
     if (job == null || !job.status.canRemove) return;
     _jobs.remove(id);
+    if (job.status == JobStatus.paused) unawaited(_media.cancel(id));
     _emit();
   }
 
@@ -147,8 +184,8 @@ class DownloadRepository {
           },
           onError: (Object e) => _end(
             id,
-            JobStatus.failed,
-            e is Cancelled
+            e is Paused ? JobStatus.paused : JobStatus.failed,
+            e is Cancelled || e is Paused
                 ? null
                 : e is FtubeException
                 ? e

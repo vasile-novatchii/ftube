@@ -2,10 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ftube/domain/models/models.dart';
 
 void main() {
-  // Every edge of the job lifecycle diagram in docs/spec.md.
+  // Every edge of the job lifecycle diagrams in docs/spec.md and
+  // docs/spec-v0.4.md section 8 (paused).
   const allowed = {
     (JobStatus.queued, JobStatus.running),
     (JobStatus.queued, JobStatus.cancelled),
+    (JobStatus.queued, JobStatus.paused),
+    (JobStatus.running, JobStatus.paused),
+    (JobStatus.paused, JobStatus.queued),
+    (JobStatus.paused, JobStatus.cancelled),
     (JobStatus.running, JobStatus.running),
     (JobStatus.running, JobStatus.completed),
     (JobStatus.running, JobStatus.failed),
@@ -30,7 +35,13 @@ void main() {
     expect(JobStatus.values.where((s) => s.canCancel), [
       JobStatus.queued,
       JobStatus.running,
+      JobStatus.paused,
     ]);
+    expect(JobStatus.values.where((s) => s.canPause), [
+      JobStatus.queued,
+      JobStatus.running,
+    ]);
+    expect(JobStatus.values.where((s) => s.canResume), [JobStatus.paused]);
     expect(JobStatus.values.where((s) => s.canRetry), [
       JobStatus.failed,
       JobStatus.cancelled,
@@ -39,6 +50,7 @@ void main() {
       JobStatus.completed,
       JobStatus.failed,
       JobStatus.cancelled,
+      JobStatus.paused,
     ]);
     expect(JobStatus.values.where((s) => s.isActive), [
       JobStatus.queued,

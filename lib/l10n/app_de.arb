@@ -164,5 +164,12 @@
   "shareNoLink": "Der geteilte Text enthält keinen Link.",
   "shareNoAccess": "Ftube braucht Speicherzugriff, um Downloads zu speichern. Öffne Ftube, um ihn zu erlauben.",
   "shareOpenApp": "Ftube öffnen",
-  "shareClose": "Schließen"
+  "shareClose": "Schließen",
+  "queuePause": "Pausieren",
+  "queueResume": "Fortsetzen",
+  "statusPaused": "Pausiert",
+  "bgPauseAll": "Alle pausieren",
+  "bgResumeAll": "Alle fortsetzen",
+  "bgPaused": "{count, plural, =1{1 Download pausiert} other{{count} Downloads pausiert}}",
+  "shareLoadingFormats": "Formate werden geladen…"
 }

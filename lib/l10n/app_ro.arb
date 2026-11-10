@@ -164,5 +164,12 @@
   "shareNoLink": "Textul partajat nu conține niciun link.",
   "shareNoAccess": "Ftube are nevoie de acces la stocare pentru a salva descărcările. Deschide Ftube pentru a-l permite.",
   "shareOpenApp": "Deschide Ftube",
-  "shareClose": "Închide"
+  "shareClose": "Închide",
+  "queuePause": "Pauză",
+  "queueResume": "Reia",
+  "statusPaused": "În pauză",
+  "bgPauseAll": "Pauză la tot",
+  "bgResumeAll": "Reia tot",
+  "bgPaused": "{count, plural, =1{1 descărcare în pauză} few{{count} descărcări în pauză} other{{count} de descărcări în pauză}}",
+  "shareLoadingFormats": "Se încarcă formatele…"
 }

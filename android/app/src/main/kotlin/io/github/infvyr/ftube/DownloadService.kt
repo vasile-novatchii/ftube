@@ -28,9 +28,18 @@ class DownloadService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_CANCEL_ALL) {
-            app.downloads.cancelAll()
-            if (!foreground) stopSelf()
+        if (intent?.action == ACTION_RESUME_ALL) {
+            // Started with startForegroundService from the paused
+            // notification, so it must go to the foreground at once.
+            stopRequested = false
+            startInForeground(app.downloads.resumingNotification())
+            if (app.downloads.resumeAll()) {
+                instance = this
+                acquireLocks()
+            } else {
+                // The process was restarted: the paused queue is gone (R-31).
+                finish()
+            }
             return START_NOT_STICKY
         }
         val notification = app.downloads.progressNotification()
@@ -106,7 +115,7 @@ class DownloadService : Service() {
     }
 
     companion object {
-        const val ACTION_CANCEL_ALL = "io.github.infvyr.ftube.CANCEL_ALL"
+        const val ACTION_RESUME_ALL = "io.github.infvyr.ftube.RESUME_ALL"
 
         /** The running service, if any. Same process as the engine. */
         var instance: DownloadService? = null

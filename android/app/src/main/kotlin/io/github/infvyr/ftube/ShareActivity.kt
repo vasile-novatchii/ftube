@@ -49,7 +49,10 @@ class ShareActivity : FlutterActivity() {
 
     private fun deliver(intent: Intent) {
         if (intent.action == Intent.ACTION_SEND) {
-            share.show(intent.getStringExtra(Intent.EXTRA_TEXT))
+            share.show(
+                intent.getStringExtra(Intent.EXTRA_TEXT),
+                intent.getStringExtra(Intent.EXTRA_SUBJECT),
+            )
         }
     }
 }

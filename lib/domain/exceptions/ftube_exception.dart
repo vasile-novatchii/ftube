@@ -75,6 +75,11 @@ final class Cancelled extends FtubeException {
   const Cancelled([super.detail]);
 }
 
+/// The job was paused; its partial files are kept (spec-v0.4 D-68).
+final class Paused extends FtubeException {
+  const Paused([super.detail]);
+}
+
 /// A new file name is empty, has a path separator or a reserved character.
 final class InvalidFileName extends FtubeException {
   const InvalidFileName(this.name) : super(name);

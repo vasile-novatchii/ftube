@@ -164,5 +164,12 @@
   "shareNoLink": "В отправленном тексте нет ссылки.",
   "shareNoAccess": "Ftube нужен доступ к хранилищу, чтобы сохранять загрузки. Откройте Ftube, чтобы разрешить его.",
   "shareOpenApp": "Открыть Ftube",
-  "shareClose": "Закрыть"
+  "shareClose": "Закрыть",
+  "queuePause": "Пауза",
+  "queueResume": "Продолжить",
+  "statusPaused": "На паузе",
+  "bgPauseAll": "Приостановить все",
+  "bgResumeAll": "Продолжить все",
+  "bgPaused": "{count, plural, one{{count} загрузка на паузе} few{{count} загрузки на паузе} many{{count} загрузок на паузе} other{{count} загрузки на паузе}}",
+  "shareLoadingFormats": "Загрузка форматов…"
 }

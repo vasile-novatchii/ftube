@@ -109,6 +109,8 @@ void main() {
         'progressChannel': 'Downloads in progress',
         'resultChannel': 'Finished downloads',
         'cancelAll': 'Cancel all',
+        'pauseAll': 'Pause all',
+        'resumeAll': 'Resume all',
         'timedOut': l10n.bgTimedOut,
       },
     });
@@ -195,6 +197,74 @@ void main() {
       JobStatus.cancelled,
     ]);
     expect(args(named('stop').single), {'title': null, 'text': null});
+    end();
+  });
+
+  testWidgets('Pause all leaves a paused notification', (tester) async {
+    begin();
+    final a = add('a');
+    final b = add('b');
+    final c = add('c');
+    await tester.pump();
+
+    await fromKotlin('pauseAll');
+    await tester.pump();
+    expect([a, b, c].map((j) => repo.job(j.id)!.status), [
+      JobStatus.paused,
+      JobStatus.paused,
+      JobStatus.paused,
+    ]);
+    expect(media.paused, [a.id, b.id]);
+    expect(args(named('paused').last), {
+      'title': '3 downloads paused',
+      'text': 'a',
+    });
+    expect(named('stop'), isEmpty);
+    expect(bg!.active, isTrue);
+
+    calls.clear();
+    await fromKotlin('resumeAll');
+    await tester.pump();
+    expect(repo.job(a.id)!.status, JobStatus.running);
+    expect(repo.job(c.id)!.status, JobStatus.queued);
+    expect(args(named('update').single)['title'], 'Downloading 1 of 3');
+    end();
+  });
+
+  testWidgets('Resume all with nothing paused stops the service', (
+    tester,
+  ) async {
+    begin();
+    await fromKotlin('resumeAll');
+    await tester.pump();
+    expect(args(named('stop').single), {'title': null, 'text': null});
+    end();
+  });
+
+  testWidgets('Cancel all also cancels paused jobs', (tester) async {
+    begin();
+    final a = add('a');
+    final b = add('b');
+    await tester.pump();
+    await repo.pause(a.id);
+    await tester.pump();
+    await fromKotlin('cancelAll');
+    await tester.pump();
+    expect(repo.job(a.id)!.status, JobStatus.cancelled);
+    expect(repo.job(b.id)!.status, JobStatus.cancelled);
+    expect(media.cancelled, containsAll([a.id, b.id]));
+    expect(args(named('stop').single), {'title': null, 'text': null});
+    end();
+  });
+
+  testWidgets('a paused job does not count as done', (tester) async {
+    begin();
+    final a = add('a');
+    add('b');
+    await tester.pump();
+    await repo.pause(a.id);
+    await tester.pump(const Duration(seconds: 1));
+    expect(args(named('update').last)['title'], 'Downloading 1 of 2');
     end();
   });
 

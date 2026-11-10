@@ -75,7 +75,23 @@ class AndroidMediaService implements MediaService {
   @override
   Future<void> cancel(String jobId) async {
     final job = _jobs[jobId];
-    if (job == null) return;
+    if (job == null) {
+      await _deleteQuietly(Directory(p.join(tempRoot.path, jobId)));
+      return;
+    }
+    job.paused = false;
+    await _stop(job);
+  }
+
+  @override
+  Future<void> pause(String jobId) async {
+    final job = _jobs[jobId];
+    if (job == null || job.cancelled) return;
+    job.paused = true;
+    await _stop(job);
+  }
+
+  Future<void> _stop(_Job job) async {
     job.cancelled = true;
     if (job.ytDlpRunning) await _ytDlp.cancel(job.id);
     await job.ffmpeg?.cancel();
@@ -103,7 +119,14 @@ class AndroidMediaService implements MediaService {
           if (job.cancelled) throw const Cancelled();
           controller.add(last);
         } on Object catch (e, st) {
-          controller.addError(job.cancelled ? const Cancelled() : e, st);
+          controller.addError(
+            job.paused
+                ? const Paused()
+                : job.cancelled
+                ? const Cancelled()
+                : e,
+            st,
+          );
         } finally {
           _jobs.remove(jobId);
           await controller.close();
@@ -237,7 +260,8 @@ class AndroidMediaService implements MediaService {
         outputPath: dst.path,
       );
     } finally {
-      await _deleteQuietly(temp);
+      // A paused job keeps its partial files for the resume (spec-v0.4 D-68).
+      if (!job.paused) await _deleteQuietly(temp);
     }
   }
 
@@ -430,6 +454,9 @@ class _Job {
 
   final String id;
   bool cancelled = false;
+
+  /// Stopped by [MediaService.pause]; implies [cancelled].
+  bool paused = false;
 
   /// yt-dlp is running for this job.
   bool ytDlpRunning = false;

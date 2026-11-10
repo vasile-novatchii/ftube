@@ -12,6 +12,7 @@ Builds on [spec-v0.4.md](spec-v0.4.md) (part 1, background downloads). Decision,
   - `ShareViewModel` has its own state, so Home is left alone. The enqueue path is moved out of `HomeViewModel.download` into a shared `DownloadStarter`.
   - After the popup closes, part 1's foreground service keeps the download alive.
 - **Unchanged:** desktop, the queue, Home, and the rule that nothing downloads until the user taps Download.
+- **Popup first (after the device test):** the full popup opens at once, with the title and thumbnail known before yt-dlp runs. yt-dlp then fills in the uploader, duration and the Format menu. See section 9.
 - **Main risk:** the engine can be attached to only one activity at a time. Opening the popup takes it from a running `MainActivity`, which has to get it back when the user returns to Ftube (R-26). This needs a device spike before the rest is built.
 
 ## 1. What changes
@@ -72,21 +73,23 @@ flowchart TD
 - The Video and Audio tabs split today's `homePresets`: `best`, `p1080`, `p720`, `p480` under Video and `audioMp3`, `audioOgg` under Audio.
 - The Format menu lists the formats from `MediaInfo.formats` for the current tab, with resolution, container and size. Picking one selects `QualityPreset.custom`, the way Home's "All formats" sheet does.
 - The popup opens on the tab and preset of Settings' `defaultPreset`.
-- While loading, the popup shows the link and a spinner. On an error it shows the message from `l10n.errorMessage` with Retry and Close.
+- While yt-dlp loads, the popup is already complete (section 9); only the Format menu waits. On an error it shows the message from `l10n.errorMessage` with Retry and Close.
 - Tapping outside the popup, Back and Cancel all close it without downloading.
 
 **Popup states**
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Loading: show(url)
+  [*] --> Preview: show(url, subject)
   [*] --> NoLink: show(null)
   [*] --> NoAccess: All files access missing
-  Loading --> Ready: fetchInfo ok
-  Loading --> Failed: fetchInfo error
-  Failed --> Loading: Retry
+  Preview --> Ready: fetchInfo ok
+  Preview --> Failed: fetchInfo error
+  Failed --> Preview: Retry
+  Preview --> Queued: Download (preset only)
   Ready --> Queued: Download
   Queued --> [*]: close(toast "Download started")
+  Preview --> [*]: Cancel / Back / outside tap
   Ready --> [*]: Cancel / Back / outside tap
   Failed --> [*]: Close
   NoLink --> [*]: Close
@@ -152,8 +155,8 @@ flowchart TD
 
   | Direction | Method | Args | Returns / effect |
   |---|---|---|---|
-  | Dart → Kotlin | `pending` | - | `{text: String?}` or `null` when nothing is waiting, cleared after reading |
-  | Kotlin → Dart | `show` | `{text: String?}` | opens or replaces the popup |
+  | Dart → Kotlin | `pending` | - | `{text: String?, subject: String?}` or `null` when nothing is waiting, cleared after reading |
+  | Kotlin → Dart | `show` | `{text: String?, subject: String?}` | opens or replaces the popup; `subject` is `EXTRA_SUBJECT` (D-63) |
   | Kotlin → Dart | `dismissed` | - | `ShareActivity` was destroyed, clears the session |
   | Dart → Kotlin | `close` | `{toast: String?}` | shows the toast, if any, then `finish()` |
   | Dart → Kotlin | `openApp` | - | starts `MainActivity`, then `finish()` |
@@ -171,6 +174,7 @@ flowchart TD
 | Unit | `DownloadStarter`: storage blocked, no folder, `+ba` for video-only, same request Home sent before the extraction | fake repository |
 | Widget | Root: a share session shows `ShareView` and keeps `AppShell` state (tab, Home url) after it closes | `FtubeApp`, overridden `shareSessionProvider` |
 | Widget | `ShareView`: Video/Audio tabs, format menu with sizes, no-link and no-access states | `ProviderScope` overrides |
+| Unit | Preview: subject as title, YouTube id to thumbnail (watch, youtu.be, shorts, m. hosts), no thumbnail for other hosts, Download before fetch uses the preview title | `test`, `ProviderContainer` |
 | Manual | Share from YouTube and Chrome: cold start, Ftube in background, Ftube in the foreground of another task; rotate the popup; return to Ftube after a share; screen off after Download | Android 12 device, latest emulator |
 
 ## 6. Definition of Done
@@ -179,6 +183,7 @@ flowchart TD
 - DoD-32: Download in the popup queues the job with the chosen format, closes the popup with a "Download started" toast, leaves the user in the sharing app, and the download finishes with the screen off.
 - DoD-33: Opening Ftube after a share shows the same tab and Home state as before, and the shared job in the queue. No second Ftube task appears in recents.
 - DoD-34: Without All files access the popup offers Open Ftube. Text without a link shows "No link found". Desktop behaves as before.
+- DoD-42: The popup with the title, thumbnail, tabs, chips and Download appears at once after picking Ftube in the share sheet, with no blank or spinner-only step; the Format menu fills in when yt-dlp is done.
 - DoD-35: DoD-3 still holds: analyze and format are clean, all tests pass and the coverage gate is met.
 
 ## 7. Risks
@@ -193,3 +198,28 @@ flowchart TD
 - File name, folder or thread-count fields in the popup - the folder and naming stay as in Settings and D-39.
 - A setting to download shared links right away without the popup.
 - Sharing into the desktop apps.
+
+## 9. Popup first (added after the device test)
+
+The first device build waited for `yt-dlp -J` (several seconds) before showing anything but the link and a spinner. NewPipe shows its dialog at once, and so will Ftube.
+
+**What is known when, and what it unlocks**
+
+```mermaid
+flowchart TD
+  share["show(text, subject)"] --> pre["Preview, at once<br/>title = subject or the link<br/>thumbnail from the YouTube id"]
+  pre --> ui["Full popup: card, tabs, chips, Download enabled<br/>Format menu shows 'Loading formats…', disabled"]
+  pre --> fetch["fetchInfo (yt-dlp -J), in the background"]
+  fetch -->|ok| ready["Card updated: title, uploader, duration<br/>Format menu enabled"]
+  fetch -->|error| err["Error line with Retry under the card<br/>Download disabled"]
+  ui -->|"Download before fetch ends"| q["enqueue with the preset<br/>job title = preview title"]
+  classDef new fill:#d4f7d4,stroke:#2e7d32
+  classDef changed fill:#fff3c4,stroke:#b38600
+  class pre,ui new
+  class fetch,err changed
+```
+
+- D-63: `ShareActivity` also passes `Intent.EXTRA_SUBJECT` as `subject`. The YouTube app puts the video title there {unverified}; Chrome puts the page title. `ShareRequest` gets `subject` (trimmed, null when empty).
+- D-64: `ShareState` gets a `preview` (`MediaInfo` with `url`, `title` = subject or the link, `thumbnail` and no formats), built synchronously in `build`. The thumbnail is `https://i.ytimg.com/vi/<id>/hqdefault.jpg` when the link is a YouTube watch, `youtu.be`, `shorts` or `m.youtube.com` link, otherwise none. No extra network call (no oEmbed): yt-dlp brings the same data plus the formats a moment later.
+- D-65: Download is enabled from the start with the chosen chip. Before the fetch ends it queues the preview with that preset; the Format menu and custom formats need the fetch. The saved file name doesn't depend on this title: it comes from yt-dlp's own title line [proof: lib/data/services/android/android_media_service.dart:139]. Only the queue row shows the preview title.
+- D-66: The storage check stays first and replaces the popup with Open Ftube (D-54) when access is missing; it is a local call, so it doesn't delay the popup visibly. A fetch error no longer replaces the popup: it shows an error line with Retry under the card and disables Download, since yt-dlp would fail the same way.

@@ -333,5 +333,20 @@
   "shareNoLink": "The shared text has no link.",
   "shareNoAccess": "Ftube needs storage access to save downloads. Open Ftube to allow it.",
   "shareOpenApp": "Open Ftube",
-  "shareClose": "Close"
+  "shareClose": "Close",
+  "queuePause": "Pause",
+  "queueResume": "Resume",
+  "statusPaused": "Paused",
+  "bgPauseAll": "Pause all",
+  "bgResumeAll": "Resume all",
+  "bgPaused": "{count, plural, =1{1 download paused} other{{count} downloads paused}}",
+  "@bgPaused": {
+    "description": "Notification title when every download left is paused.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareLoadingFormats": "Loading formats…"
 }

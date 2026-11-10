@@ -46,6 +46,11 @@ class QueueViewModel extends _$QueueViewModel {
 
   void retry(String id) => ref.read(downloadRepositoryProvider).retry(id);
 
+  Future<void> pause(String id) =>
+      ref.read(downloadRepositoryProvider).pause(id);
+
+  void resume(String id) => ref.read(downloadRepositoryProvider).resume(id);
+
   void remove(String id) => ref.read(downloadRepositoryProvider).remove(id);
 
   void clearFinished() => ref.read(downloadRepositoryProvider).clearFinished();
