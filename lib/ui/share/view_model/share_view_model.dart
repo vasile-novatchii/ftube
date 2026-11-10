@@ -44,21 +44,51 @@ class ShareSession extends _$ShareSession {
   }
 }
 
-/// Presets on the popup's Video tab.
+/// Presets on the popup's Video tab, highest first.
 const shareVideoPresets = [
   QualityPreset.best,
   QualityPreset.p1080,
   QualityPreset.p720,
   QualityPreset.p480,
+  QualityPreset.p360,
 ];
 
 /// Presets on the popup's Audio tab.
-const shareAudioPresets = [QualityPreset.audioMp3, QualityPreset.audioOgg];
+const shareAudioPresets = [
+  QualityPreset.audioMp3,
+  QualityPreset.audioM4a,
+  QualityPreset.audioOgg,
+];
+
+/// Whether [preset] gives something for a video with [formats]
+/// (spec-v0.4-share D-73). A height chip needs a video stream above the
+/// next lower chip, so each chip gives a different download. Best, MP3 and
+/// OGG always work; M4A needs an M4A audio stream.
+bool sharePresetAvailable(QualityPreset preset, List<MediaFormat> formats) {
+  if (preset == QualityPreset.audioM4a) {
+    return formats.any(
+      (f) => f.kind == FormatKind.audioOnly && f.container == 'm4a',
+    );
+  }
+  final max = preset.maxHeight;
+  if (max == null) return true;
+  final i = shareVideoPresets.indexOf(preset);
+  final lower = i + 1 < shareVideoPresets.length
+      ? shareVideoPresets[i + 1].maxHeight ?? 0
+      : 0;
+  return formats.any(
+    (f) =>
+        f.kind != FormatKind.audioOnly &&
+        f.height != null &&
+        f.height! > lower &&
+        f.height! <= max,
+  );
+}
 
 @freezed
 abstract class ShareState with _$ShareState {
   const factory ShareState({
-    /// The chosen chip, never [QualityPreset.custom]; [formatId] overrides it.
+    /// The chosen chip, never [QualityPreset.custom].
     required QualityPreset preset,
 
     /// Null when the shared text had no link.
@@ -73,9 +103,6 @@ abstract class ShareState with _$ShareState {
     MediaInfo? info,
     Object? error,
 
-    /// A format picked from the format menu.
-    String? formatId,
-
     /// Android: storage access is missing (D-54).
     @Default(false) bool noAccess,
 
@@ -87,17 +114,25 @@ abstract class ShareState with _$ShareState {
 
   bool get audio => preset.isAudioOnly;
 
-  List<QualityPreset> get presets =>
-      audio ? shareAudioPresets : shareVideoPresets;
+  /// The chips of the current tab: all of them while loading, then only
+  /// those the video has (D-73, D-74).
+  List<QualityPreset> get presets => _tab(audio: audio);
 
-  /// The formats for the current tab.
-  List<MediaFormat> get formats => [
-    for (final f in info?.formats ?? const <MediaFormat>[])
-      if ((f.kind == FormatKind.audioOnly) == audio) f,
-  ];
+  List<QualityPreset> _tab({required bool audio}) {
+    final all = audio ? shareAudioPresets : shareVideoPresets;
+    final formats = info?.formats;
+    if (formats == null) return all;
+    return [
+      for (final p in all)
+        if (sharePresetAvailable(p, formats)) p,
+    ];
+  }
 
-  MediaFormat? get selectedFormat =>
-      formats.where((f) => f.id == formatId).firstOrNull;
+  /// [preset], or the tab's first chip when the video lacks it.
+  QualityPreset _supported(QualityPreset preset) {
+    final tab = _tab(audio: preset.isAudioOnly);
+    return tab.contains(preset) ? preset : tab.first;
+  }
 
   /// The card's content: the loaded video, or the preview until then.
   MediaInfo? get shown => info ?? preview;
@@ -152,23 +187,20 @@ class ShareViewModel extends _$ShareViewModel {
     if (audio == state.audio) return;
     final preset = _defaultPreset();
     state = state.copyWith(
-      preset: preset.isAudioOnly == audio
-          ? preset
-          : (audio ? shareAudioPresets : shareVideoPresets).first,
-      formatId: null,
+      preset: state._supported(
+        preset.isAudioOnly == audio
+            ? preset
+            : (audio ? shareAudioPresets : shareVideoPresets).first,
+      ),
     );
   }
 
   void selectPreset(QualityPreset preset) {
     if (preset == QualityPreset.custom) {
-      throw ArgumentError.value(preset, 'preset', 'use selectFormat');
+      throw ArgumentError.value(preset, 'preset', 'not a share chip');
     }
-    state = state.copyWith(preset: preset, formatId: null);
+    state = state.copyWith(preset: preset);
   }
-
-  /// Picks a format of the current tab, or the chosen chip again for null.
-  void selectFormat(String? formatId) =>
-      state = state.copyWith(formatId: formatId);
 
   /// Queues the video and closes the popup with [toast].
   Future<void> download({required String toast}) async {
@@ -176,9 +208,7 @@ class ShareViewModel extends _$ShareViewModel {
     if (info == null || !state.canDownload) return;
     state = state.copyWith(queuing: true);
     try {
-      await ref
-          .read(downloadStarterProvider)
-          .start(info, state.preset, format: state.selectedFormat);
+      await ref.read(downloadStarterProvider).start(info, state.preset);
     } on StorageBlocked {
       if (ref.mounted) state = state.copyWith(queuing: false, noAccess: true);
       return;
@@ -200,7 +230,12 @@ class ShareViewModel extends _$ShareViewModel {
       }
       final info = await ref.read(mediaServiceProvider).fetchInfo(url);
       if (!ref.mounted || seq != _seq) return;
-      state = state.copyWith(fetching: false, info: info, noAccess: false);
+      final loaded = state.copyWith(
+        fetching: false,
+        info: info,
+        noAccess: false,
+      );
+      state = loaded.copyWith(preset: loaded._supported(loaded.preset));
     } on Object catch (e) {
       if (!ref.mounted || seq != _seq) return;
       state = state.copyWith(fetching: false, error: e);

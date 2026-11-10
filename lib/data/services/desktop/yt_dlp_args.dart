@@ -40,6 +40,7 @@ abstract final class YtDlpArgs {
       }
       return formatId;
     }
+    if (preset == QualityPreset.audioM4a) return 'ba[ext=m4a]/ba/b';
     if (preset.isAudioOnly) return 'ba/b';
     final h = preset.maxHeight;
     if (h == null) return 'bv*+ba/b';

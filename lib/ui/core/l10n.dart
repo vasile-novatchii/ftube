@@ -31,7 +31,9 @@ extension AppLocalizationsLabels on AppLocalizations {
     QualityPreset.p1080 => presetP1080,
     QualityPreset.p720 => presetP720,
     QualityPreset.p480 => presetP480,
+    QualityPreset.p360 => presetP360,
     QualityPreset.audioMp3 => presetAudioMp3,
+    QualityPreset.audioM4a => presetAudioM4a,
     QualityPreset.audioOgg => presetAudioOgg,
     QualityPreset.custom => presetCustom,
   };

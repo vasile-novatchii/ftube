@@ -20,8 +20,18 @@ const info = MediaInfo(
   url: url,
   title: 'Song',
   formats: [
-    MediaFormat(id: '137', container: 'mp4', kind: FormatKind.videoOnly),
-    MediaFormat(id: '18', container: 'mp4', kind: FormatKind.videoAudio),
+    MediaFormat(
+      id: '137',
+      container: 'mp4',
+      kind: FormatKind.videoOnly,
+      height: 1080,
+    ),
+    MediaFormat(
+      id: '18',
+      container: 'mp4',
+      kind: FormatKind.videoAudio,
+      height: 360,
+    ),
     MediaFormat(id: '140', container: 'm4a', kind: FormatKind.audioOnly),
   ],
 );
@@ -101,7 +111,7 @@ void main() {
         state().shown?.thumbnailUrl,
         'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
       );
-      expect(state().formats, isEmpty);
+      expect(state().presets, shareVideoPresets);
       pending.complete(info);
       await pumpEventQueue();
       expect(state().shown, info);
@@ -193,52 +203,62 @@ void main() {
       expect(state().url, 'https://youtu.be/xyz');
     });
 
-    test('tabs switch presets and formats', () async {
+    test('tabs show only the chips the video has', () async {
       await share(url);
-      expect(state().presets, shareVideoPresets);
-      expect(state().formats.map((f) => f.id), ['137', '18']);
+      expect(state().presets, [
+        QualityPreset.best,
+        QualityPreset.p1080,
+        QualityPreset.p360,
+      ]);
 
       vm().selectTab(audio: true);
       expect(state().audio, isTrue);
       expect(state().preset, QualityPreset.audioMp3);
       expect(state().presets, shareAudioPresets);
-      expect(state().formats.map((f) => f.id), ['140']);
 
       vm().selectTab(audio: true);
       expect(state().preset, QualityPreset.audioMp3);
 
       vm().selectTab(audio: false);
       expect(state().preset, QualityPreset.best);
-    });
-
-    test('a picked format overrides the chip until the tab changes', () async {
-      await share(url);
-      vm().selectFormat('137');
-      expect(state().selectedFormat?.id, '137');
-      vm().selectPreset(QualityPreset.p720);
-      expect(state().formatId, isNull);
-      expect(state().preset, QualityPreset.p720);
-
-      vm().selectFormat('18');
-      vm().selectTab(audio: true);
-      expect(state().selectedFormat, isNull);
-      // A video format is not offered on the Audio tab.
-      vm().selectFormat('18');
-      expect(state().selectedFormat, isNull);
-
       expect(
         () => vm().selectPreset(QualityPreset.custom),
         throwsArgumentError,
       );
     });
 
-    test('download queues the video and closes with a toast', () async {
+    test('a chip the video lacks falls back to the first one', () async {
+      final pending = Completer<MediaInfo>();
+      env.media.onFetch = (_) => pending.future;
       await share(url);
-      vm().selectFormat('137');
+      vm().selectPreset(QualityPreset.p720);
+      pending.complete(info);
+      await pumpEventQueue();
+      expect(state().preset, QualityPreset.best);
+
+      vm().selectTab(audio: true);
+      vm().selectPreset(QualityPreset.audioM4a);
+      expect(state().preset, QualityPreset.audioM4a);
+    });
+
+    test('a default chip the video lacks falls back too', () async {
+      c.dispose();
+      env.media.onFetch = (_) async => info.copyWith(formats: const []);
+      await setUpEnv({SettingsRepository.presetKey: 'audioM4a'});
+      await share(url);
+      expect(state().preset, QualityPreset.audioMp3);
+      expect(state().presets, [QualityPreset.audioMp3, QualityPreset.audioOgg]);
+      vm().selectTab(audio: false);
+      expect(state().presets, [QualityPreset.best]);
+    });
+
+    test('download queues the chip and closes with a toast', () async {
+      await share(url);
+      vm().selectPreset(QualityPreset.p360);
       await vm().download(toast: 'Download started');
       final job = jobs().single;
-      expect(job.request.preset, QualityPreset.custom);
-      expect(job.request.formatId, '137+ba');
+      expect(job.request.preset, QualityPreset.p360);
+      expect(job.request.formatId, isNull);
       final close = host.calls.lastWhere((c) => c.method == 'close');
       expect(close.arguments, {'toast': 'Download started'});
       expect(c.read(shareSessionProvider), isNull);

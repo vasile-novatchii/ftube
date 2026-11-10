@@ -105,41 +105,11 @@ class _Content extends ConsumerWidget {
                 ChoiceChip(
                   key: Key('share.preset.${preset.name}'),
                   label: Text(l10n.presetLabel(preset)),
-                  selected: state.formatId == null && state.preset == preset,
+                  selected: state.preset == preset,
                   onSelected: (_) => vm.selectPreset(preset),
                 ),
             ],
           ),
-          if (state.fetching) ...[
-            const SizedBox(height: 12),
-            Text(
-              l10n.shareLoadingFormats,
-              key: const Key('share.loading'),
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 4),
-            const LinearProgressIndicator(),
-          ] else if (state.formats.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(l10n.shareFormat, style: theme.textTheme.titleSmall),
-            DropdownButton<String?>(
-              key: const Key('share.format'),
-              value: state.selectedFormat?.id,
-              isExpanded: true,
-              items: [
-                DropdownMenuItem(child: Text(l10n.shareFormatAuto)),
-                for (final f in state.formats)
-                  DropdownMenuItem(
-                    value: f.id,
-                    child: Text(
-                      l10n.formatLabel(f),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-              onChanged: vm.selectFormat,
-            ),
-          ],
           if (error != null) ...[
             const SizedBox(height: 12),
             Text(

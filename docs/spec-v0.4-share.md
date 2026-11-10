@@ -208,7 +208,7 @@ The first device build waited for `yt-dlp -J` (several seconds) before showing a
 ```mermaid
 flowchart TD
   share["show(text, subject)"] --> pre["Preview, at once<br/>title = subject or the link<br/>thumbnail from the YouTube id"]
-  pre --> ui["Full popup: card, tabs, chips, Download enabled<br/>Format menu shows 'Loading formats…', disabled"]
+  pre --> ui["Full popup: card, tabs, chips, Download enabled<br/>no loading indicator (D-76)"]
   pre --> fetch["fetchInfo (yt-dlp -J), in the background"]
   fetch -->|ok| ready["Card updated: title, uploader, duration<br/>Format menu enabled"]
   fetch -->|error| err["Error line with Retry under the card<br/>Download disabled"]
@@ -223,3 +223,56 @@ flowchart TD
 - D-64: `ShareState` gets a `preview` (`MediaInfo` with `url`, `title` = subject or the link, `thumbnail` and no formats), built synchronously in `build`. The thumbnail is `https://i.ytimg.com/vi/<id>/hqdefault.jpg` when the link is a YouTube watch, `youtu.be`, `shorts` or `m.youtube.com` link, otherwise none. No extra network call (no oEmbed): yt-dlp brings the same data plus the formats a moment later.
 - D-65: Download is enabled from the start with the chosen chip. Before the fetch ends it queues the preview with that preset; the Format menu and custom formats need the fetch. The saved file name doesn't depend on this title: it comes from yt-dlp's own title line [proof: lib/data/services/android/android_media_service.dart:139]. Only the queue row shows the preview title.
 - D-66: The storage check stays first and replaces the popup with Open Ftube (D-54) when access is missing; it is a local call, so it doesn't delay the popup visibly. A fetch error no longer replaces the popup: it shows an error line with Retry under the card and disables Download, since yt-dlp would fail the same way.
+
+## 10. Chips only, and a faster first fetch (added after the second device test)
+
+The Format menu listed every stream yt-dlp found, which is too much for a share popup. The popup now offers only chips, and only those the video can give. The first share after app start also waited for the yt-dlp self-update before fetching.
+
+**Which chips the popup shows**
+
+```mermaid
+flowchart TD
+  tab{Tab} -->|Video| v["Best, 1080p, 720p, 480p, 360p"]
+  tab -->|Audio| a["MP3, M4A, OGG"]
+  v --> loaded{yt-dlp done?}
+  a --> loaded
+  loaded -->|no| all["All chips, Download enabled"]
+  loaded -->|yes| keep["Only the available chips<br/>a chosen chip that is gone falls back to the tab's first"]
+  classDef new fill:#d4f7d4,stroke:#2e7d32
+  classDef changed fill:#fff3c4,stroke:#b38600
+  class keep new
+  class v,a changed
+```
+
+**First fetch after app start**
+
+```mermaid
+sequenceDiagram
+  participant V as ShareViewModel
+  participant S as AndroidMediaService (changed)
+  participant Y as yt-dlp
+  V->>S: fetchInfo(url)
+  alt update not started yet
+    S->>Y: -J with the installed yt-dlp
+    alt ok
+      S-->>V: info
+      S->>Y: update, in the background
+    else failed, not Network
+      S->>Y: update
+      S->>Y: -J again
+      S-->>V: info or error
+    end
+  else update started
+    S->>S: wait for it
+    S->>Y: -J
+    S-->>V: info or error
+  end
+```
+
+- D-73: The popup has no Format menu. Video chips: Best, 1080p, 720p, 480p, 360p (new `p360`). Audio chips: MP3, M4A, OGG (new `audioM4a`, the original M4A stream saved without conversion, selector `ba[ext=m4a]/ba/b`). Both new presets are also offered as the default quality in Settings. Home is unchanged.
+- D-74: Once the formats are known, a height chip shows only when the video has a video stream above the next lower chip and at most its own height, so each chip gives a different file. Best, MP3 and OGG always show; M4A needs an M4A audio-only stream. Until then all chips show and Download works (D-65).
+- D-75: `fetchInfo` doesn't wait for this launch's yt-dlp update when none has started. The update starts after the info run, and waits for info runs in flight, since it replaces the files they read. A failure other than `Network` with the installed yt-dlp waits for the update and runs `-J` once more, which covers the very first launch with the bundled, too old yt-dlp. Downloads still update before their first run (D-36).
+- D-76: The popup shows no loading text or bar while yt-dlp runs. The chips work from the start, and the fetch only updates the card and drops the chips the video lacks.
+- DoD-46: The popup shows only chips the video has; M4A saves a `.m4a` without converting.
+- DoD-47: A share right after app start shows the formats without waiting for the yt-dlp update.
+- R-33: Portrait videos report their long side as `height`, so the height chips follow it, as the existing presets do.

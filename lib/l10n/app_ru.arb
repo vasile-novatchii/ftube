@@ -29,7 +29,9 @@
   "presetP1080": "1080p",
   "presetP720": "720p",
   "presetP480": "480p",
+  "presetP360": "360p",
   "presetAudioMp3": "MP3",
+  "presetAudioM4a": "M4A",
   "presetAudioOgg": "OGG",
   "presetCustom": "Выбрать формат",
   "settingsStorageAccess": "Доступ к хранилищу",
@@ -170,6 +172,5 @@
   "statusPaused": "На паузе",
   "bgPauseAll": "Приостановить все",
   "bgResumeAll": "Продолжить все",
-  "bgPaused": "{count, plural, one{{count} загрузка на паузе} few{{count} загрузки на паузе} many{{count} загрузок на паузе} other{{count} загрузки на паузе}}",
-  "shareLoadingFormats": "Загрузка форматов…"
+  "bgPaused": "{count, plural, one{{count} загрузка на паузе} few{{count} загрузки на паузе} many{{count} загрузок на паузе} other{{count} загрузки на паузе}}"
 }

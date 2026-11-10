@@ -36,7 +36,9 @@
   "presetP1080": "1080p",
   "presetP720": "720p",
   "presetP480": "480p",
+  "presetP360": "360p",
   "presetAudioMp3": "MP3",
+  "presetAudioM4a": "M4A",
   "presetAudioOgg": "OGG",
   "presetCustom": "Specific format",
   "settingsStorageAccess": "Storage access",
@@ -347,6 +349,5 @@
         "type": "int"
       }
     }
-  },
-  "shareLoadingFormats": "Loading formats…"
+  }
 }

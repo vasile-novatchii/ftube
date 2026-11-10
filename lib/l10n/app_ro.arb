@@ -29,7 +29,9 @@
   "presetP1080": "1080p",
   "presetP720": "720p",
   "presetP480": "480p",
+  "presetP360": "360p",
   "presetAudioMp3": "MP3",
+  "presetAudioM4a": "M4A",
   "presetAudioOgg": "OGG",
   "presetCustom": "Format anume",
   "settingsStorageAccess": "Acces la stocare",
@@ -170,6 +172,5 @@
   "statusPaused": "În pauză",
   "bgPauseAll": "Pauză la tot",
   "bgResumeAll": "Reia tot",
-  "bgPaused": "{count, plural, =1{1 descărcare în pauză} few{{count} descărcări în pauză} other{{count} de descărcări în pauză}}",
-  "shareLoadingFormats": "Se încarcă formatele…"
+  "bgPaused": "{count, plural, =1{1 descărcare în pauză} few{{count} descărcări în pauză} other{{count} de descărcări în pauză}}"
 }

@@ -29,7 +29,9 @@
   "presetP1080": "1080p",
   "presetP720": "720p",
   "presetP480": "480p",
+  "presetP360": "360p",
   "presetAudioMp3": "MP3",
+  "presetAudioM4a": "M4A",
   "presetAudioOgg": "OGG",
   "presetCustom": "Bestimmtes Format",
   "settingsStorageAccess": "Speicherzugriff",
@@ -170,6 +172,5 @@
   "statusPaused": "Pausiert",
   "bgPauseAll": "Alle pausieren",
   "bgResumeAll": "Alle fortsetzen",
-  "bgPaused": "{count, plural, =1{1 Download pausiert} other{{count} Downloads pausiert}}",
-  "shareLoadingFormats": "Formate werden geladen…"
+  "bgPaused": "{count, plural, =1{1 Download pausiert} other{{count} Downloads pausiert}}"
 }

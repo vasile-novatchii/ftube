@@ -27,6 +27,7 @@ const info = MediaInfo(
       container: 'mp4',
       kind: FormatKind.videoOnly,
       resolution: '1080p',
+      height: 1080,
     ),
     MediaFormat(id: '140', container: 'm4a', kind: FormatKind.audioOnly),
   ],
@@ -123,18 +124,17 @@ void main() {
       await flush(tester);
     });
 
-    testWidgets('queues a format picked from the menu', (tester) async {
+    testWidgets('offers only the chips the video has', (tester) async {
       await pump(tester);
-      await tester.tap(find.byKey(const Key('share.format')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('1080p').last);
-      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('share.format')), findsNothing);
+      expect(find.byKey(const Key('share.preset.p720')), findsNothing);
+      await tap(tester, 'share.preset.p1080');
       final chip = tester.widget<ChoiceChip>(
         find.byKey(const Key('share.preset.best')),
       );
       expect(chip.selected, isFalse);
       await tap(tester, 'share.download');
-      expect(jobs().single.request.formatId, '137+ba');
+      expect(jobs().single.request.preset, QualityPreset.p1080);
       await flush(tester);
     });
 
@@ -218,7 +218,7 @@ void main() {
       expect(find.text('Shared title'), findsOneWidget);
       expect(find.byKey(const Key('share.tabs')), findsOneWidget);
       expect(find.byKey(const Key('share.preset.best')), findsOneWidget);
-      expect(find.byKey(const Key('share.loading')), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
       expect(find.byKey(const Key('share.format')), findsNothing);
       final download = tester.widget<ButtonStyleButton>(
         find.byKey(const Key('share.download')),

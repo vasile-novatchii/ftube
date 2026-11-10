@@ -66,7 +66,9 @@ const defaultPresetChoices = [
   QualityPreset.p1080,
   QualityPreset.p720,
   QualityPreset.p480,
+  QualityPreset.p360,
   QualityPreset.audioMp3,
+  QualityPreset.audioM4a,
   QualityPreset.audioOgg,
 ];
 

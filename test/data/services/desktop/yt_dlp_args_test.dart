@@ -22,6 +22,14 @@ void main() {
       );
       expect(YtDlpArgs.formatSelector(QualityPreset.audioMp3), 'ba/b');
       expect(YtDlpArgs.formatSelector(QualityPreset.audioOgg), 'ba/b');
+      expect(
+        YtDlpArgs.formatSelector(QualityPreset.p360),
+        'bv*[height<=360]+ba/b[height<=360]',
+      );
+      expect(
+        YtDlpArgs.formatSelector(QualityPreset.audioM4a),
+        'ba[ext=m4a]/ba/b',
+      );
     });
 
     test('custom passes the format id through', () {
@@ -65,6 +73,16 @@ void main() {
       preset: preset,
       outDir: Directory('/out'),
     );
+
+    test('M4A keeps the original stream without -x', () {
+      final args = YtDlpArgs.download(
+        req(QualityPreset.audioM4a),
+        ffmpegDir: '/bin',
+        tempDir: '/tmp/j1',
+      );
+      expect(args, containsAllInOrder(['-f', 'ba[ext=m4a]/ba/b']));
+      expect(args, isNot(contains('-x')));
+    });
 
     test('video preset: selector, temp output, templates, url last', () {
       final args = YtDlpArgs.download(

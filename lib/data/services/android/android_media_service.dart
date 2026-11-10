@@ -46,18 +46,51 @@ class AndroidMediaService implements MediaService {
   /// The yt-dlp update of this launch (D-36). Reset when it fails, so the
   /// next call tries again.
   Future<void>? _ready;
-  var _infoRuns = 0;
+  var _infoCount = 0;
 
+  /// Info runs in flight. The update waits for them, since it replaces the
+  /// yt-dlp files they read (spec-v0.4-share D-75).
+  final _infoRuns = <Future<void>>{};
+
+  /// Doesn't wait for this launch's update when none has started: the
+  /// installed yt-dlp answers at once, and the update starts after it. Only
+  /// a failure with the old yt-dlp waits for the update and tries again
+  /// (spec-v0.4-share D-75).
   @override
   Future<MediaInfo> fetchInfo(String url) async {
     final trimmed = url.trim();
     _checkUrl(trimmed);
-    await _ensureReady();
+    final ready = _ready;
+    if (ready != null) {
+      await ready;
+      return _info(trimmed);
+    }
+    try {
+      final info = await _info(trimmed);
+      unawaited(_ensureReady());
+      return info;
+    } on Network {
+      rethrow;
+    } on FtubeException {
+      await _ensureReady();
+      return _info(trimmed);
+    }
+  }
+
+  Future<MediaInfo> _info(String url) {
+    final run = _runInfo(url);
+    final done = run.then<void>((_) {}, onError: (Object _) {});
+    _infoRuns.add(done);
+    unawaited(done.whenComplete(() => _infoRuns.remove(done)));
+    return run;
+  }
+
+  Future<MediaInfo> _runInfo(String url) async {
     final out = StringBuffer();
-    final job = _Job('info-${_infoRuns++}');
-    final r = await _runYtDlp(job, YtDlpArgs.androidInfo(trimmed), out.writeln);
+    final job = _Job('info-${_infoCount++}');
+    final r = await _runYtDlp(job, YtDlpArgs.androidInfo(url), out.writeln);
     if (r.exitCode != 0) throw YtDlpOutput.mapError(r.exitCode, r.stderr);
-    return YtDlpOutput.parseInfo(out.toString(), url: trimmed);
+    return YtDlpOutput.parseInfo(out.toString(), url: url);
   }
 
   @override
@@ -296,10 +329,16 @@ class AndroidMediaService implements MediaService {
 
   /// Updates yt-dlp once per launch before its first use (D-36). A failed
   /// update keeps the installed version and is tried again next time.
-  Future<void> _ensureReady() => _ready ??= _ytDlp.update().then(
-    (_) {},
-    onError: (Object _) => _ready = null,
-  );
+  Future<void> _ensureReady() => _ready ??= _update();
+
+  Future<void> _update() async {
+    await Future.wait(_infoRuns.toList());
+    try {
+      await _ytDlp.update();
+    } on Object {
+      _ready = null;
+    }
+  }
 
   /// Runs yt-dlp for [job], stopping it after [idleTimeout] without output.
   Future<YtDlpResult> _runYtDlp(

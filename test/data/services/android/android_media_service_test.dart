@@ -90,18 +90,68 @@ void main() {
       );
     });
 
-    test('updates yt-dlp once per launch, before the first run', () async {
+    test('updates yt-dlp once per launch, after the first info', () async {
       await service.fetchInfo(url);
+      expect(ytDlp.runs, hasLength(1));
+      expect(ytDlp.updateCalls, 0);
+      await pumpEventQueue();
+      expect(ytDlp.updateCalls, 1);
       await service.download(request(QualityPreset.best)).drain<void>();
       await service.fetchInfo(url);
       expect(ytDlp.updateCalls, 1);
     });
 
+    test('a download updates before its first run', () async {
+      await service.download(request(QualityPreset.best)).drain<void>();
+      expect(ytDlp.updateCalls, 1);
+    });
+
+    test('the update waits for info runs in flight', () async {
+      ytDlp.infoHold = Completer<void>();
+      final info = service.fetchInfo(url);
+      await pumpEventQueue();
+      final download = service
+          .download(request(QualityPreset.best))
+          .drain<void>();
+      await pumpEventQueue();
+      expect(ytDlp.updateCalls, 0);
+      expect(ytDlp.runs, hasLength(1));
+      ytDlp.infoHold!.complete();
+      await info;
+      await download;
+      expect(ytDlp.updateCalls, 1);
+      expect(ytDlp.runs, hasLength(2));
+    });
+
+    test('a failure with the old yt-dlp retries after the update', () async {
+      ytDlp
+        ..exitCode = 1
+        ..stderr = 'ERROR: [youtube] abc: Sign in to confirm';
+      await expectLater(service.fetchInfo(url), throwsA(isA<FtubeException>()));
+      expect(ytDlp.runs, hasLength(2));
+      expect(ytDlp.updateCalls, 1);
+
+      ytDlp.exitCode = 0;
+      await service.fetchInfo(url);
+      expect(ytDlp.runs, hasLength(3));
+    });
+
+    test('a network failure does not wait for the update', () async {
+      ytDlp
+        ..exitCode = 1
+        ..stderr = 'ERROR: TransportError: timed out';
+      await expectLater(service.fetchInfo(url), throwsA(isA<Network>()));
+      expect(ytDlp.runs, hasLength(1));
+      expect(ytDlp.updateCalls, 0);
+    });
+
     test('a failed update is ignored and tried again next time', () async {
       ytDlp.updateError = const Network('offline');
       await service.fetchInfo(url);
+      await pumpEventQueue();
       ytDlp.updateError = null;
       await service.fetchInfo(url);
+      await pumpEventQueue();
       await service.fetchInfo(url);
       expect(ytDlp.updateCalls, 2);
     });
@@ -181,6 +231,15 @@ void main() {
         closeTo(0.95, 1e-9),
       ]);
       expect(events.last.outputPath, endsWith('Big Buck Bunny： 60fps 4K!.ogg'));
+      expect(tempIsEmpty(), isTrue);
+    });
+
+    test('M4A moves the audio stream without ffmpeg', () async {
+      ytDlp.parts = const [FakePart('140', 'm4a', audio: true, size: 500)];
+      final last = await service.download(request(QualityPreset.audioM4a)).last;
+      expect(ytDlp.runs.single, containsAllInOrder(['-f', 'ba[ext=m4a]/ba/b']));
+      expect(last.outputPath, endsWith('Big Buck Bunny： 60fps 4K!.m4a'));
+      expect(ffmpeg.calls, isEmpty);
       expect(tempIsEmpty(), isTrue);
     });
 

@@ -48,6 +48,9 @@ class FakeYtDlpBridge implements YtDlpBridge {
   /// When set, runs wait for this after printing the first part's lines.
   Completer<void>? hold;
 
+  /// When set, `-J` runs wait for this before printing.
+  Completer<void>? infoHold;
+
   /// Runs print nothing and wait until cancelled.
   bool silent = false;
 
@@ -85,6 +88,7 @@ class FakeYtDlpBridge implements YtDlpBridge {
         return const YtDlpResult(exitCode: -1, cancelled: true);
       }
       if (args.contains('-J')) {
+        await infoHold?.future;
         emit(infoJson);
         return YtDlpResult(exitCode: exitCode, stderr: stderr);
       }
