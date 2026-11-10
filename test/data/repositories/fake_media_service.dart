@@ -66,13 +66,16 @@ class FakeMediaService implements MediaService {
   }
 
   /// Answers [fetchInfo]; the default throws [Network].
-  Future<MediaInfo> Function(String url) onFetch = (_) async =>
+  Future<FetchResult> Function(String url) onFetch = (_) async =>
       throw const Network();
   final fetched = <String>[];
 
+  /// URLs fetched with `playlist: true`.
+  final fetchedPlaylists = <String>[];
+
   @override
-  Future<MediaInfo> fetchInfo(String url) {
-    fetched.add(url);
+  Future<FetchResult> fetchInfo(String url, {bool playlist = false}) {
+    (playlist ? fetchedPlaylists : fetched).add(url);
     return onFetch(url);
   }
 

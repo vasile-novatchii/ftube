@@ -89,6 +89,17 @@ void main() {
       expect(args.last, 'https://youtu.be/aqz-KE-bpKQ');
     });
 
+    test('reads the playlist of a link when asked', () async {
+      when(
+        () => runner.run(any(), any()),
+      ).thenAnswer((_) async => const ProcessOutput(0, '{"title": "t"}', ''));
+      await service.fetchInfo('https://x.test/v', playlist: true);
+      final args =
+          verify(() => runner.run(any(), captureAny())).captured.single
+              as List<String>;
+      expect(args, contains('--yes-playlist'));
+    });
+
     test('works without deno', () async {
       File(binPath('deno')).deleteSync();
       when(

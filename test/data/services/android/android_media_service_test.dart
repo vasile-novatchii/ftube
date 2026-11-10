@@ -70,7 +70,8 @@ void main() {
     });
 
     test('parses yt-dlp -J for any site', () async {
-      final info = await service.fetchInfo(' https://vimeo.com/1 ');
+      final info =
+          await service.fetchInfo(' https://vimeo.com/1 ') as MediaInfo;
       expect(info.url, 'https://vimeo.com/1');
       expect(info.title, 'Big Buck Bunny');
       expect(info.uploader, 'Blender');
@@ -88,6 +89,11 @@ void main() {
         service.fetchInfo('https://x.test'),
         throwsA(isA<Unsupported>()),
       );
+    });
+
+    test('reads the playlist of a link when asked', () async {
+      await service.fetchInfo(url, playlist: true);
+      expect(ytDlp.runs.single, contains('--yes-playlist'));
     });
 
     test('updates yt-dlp once per launch, after the first info', () async {

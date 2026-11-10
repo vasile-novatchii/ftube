@@ -349,5 +349,85 @@
         "type": "int"
       }
     }
-  }
+  },
+  "queueCancelQueued": "Cancel queued",
+  "homePartOfPlaylist": "This video is part of a playlist.",
+  "homeShowPlaylist": "Show playlist",
+  "playlistVideos": "{count, plural, =1{1 video} other{{count} videos}}",
+  "@playlistVideos": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playlistShowing": "Showing {shown} of {total}",
+  "@playlistShowing": {
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "playlistSelectAll": "Select all",
+  "playlistSelectNone": "Select none",
+  "playlistDownload": "Download ({count})",
+  "@playlistDownload": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playlistUnavailable": "Unavailable",
+  "playlistQueued": "{count, plural, =1{1 download queued.} other{{count} downloads queued.}}",
+  "@playlistQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareIsPlaylist": "This link is a playlist. Open it in Ftube to pick the videos.",
+  "shareOpenPlaylist": "Open in Ftube",
+  "playlistShowingFirst": "Showing the first {count}",
+  "@playlistShowingFirst": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statusDownloading": "Downloading",
+  "homeInQueue": "Already in the queue: {status}",
+  "@homeInQueue": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistSelected": "{count} selected",
+  "@playlistSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playlistShowVideos": "Show videos",
+  "playlistHideVideos": "Hide videos",
+  "queueClearAll": "Clear all",
+  "queueClearAllConfirm": "{count, plural, =1{Stop 1 download and clear the list?} other{Stop {count} downloads and clear the list?}}",
+  "@queueClearAllConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueClearAllBody": "Files already downloaded stay on disk."
 }

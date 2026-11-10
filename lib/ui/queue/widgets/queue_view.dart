@@ -21,19 +21,32 @@ class QueueView extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        Text(
+          l10n.queueTitle(state.jobs.length),
+          style: theme.textTheme.titleMedium,
+        ),
+        // A wrap, since three buttons don't fit beside the title on a phone.
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 4,
           children: [
-            Expanded(
-              child: Text(
-                l10n.queueTitle(state.jobs.length),
-                style: theme.textTheme.titleMedium,
+            if (state.hasQueued)
+              TextButton(
+                key: const Key('queue.cancelQueued'),
+                onPressed: vm.cancelQueued,
+                child: Text(l10n.queueCancelQueued),
               ),
-            ),
             if (state.hasCompleted)
               TextButton(
                 key: const Key('queue.clear'),
                 onPressed: vm.clearFinished,
                 child: Text(l10n.queueClearDone),
+              ),
+            if (state.jobs.isNotEmpty)
+              TextButton(
+                key: const Key('queue.clearAll'),
+                onPressed: () => _clearAll(context, state, vm),
+                child: Text(l10n.queueClearAll),
               ),
           ],
         ),
@@ -52,6 +65,39 @@ class QueueView extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Clears the queue, asking first when downloads would be stopped
+/// (spec-v0.5 D-86).
+Future<void> _clearAll(
+  BuildContext context,
+  QueueState state,
+  QueueViewModel vm,
+) async {
+  final stopping = state.unfinishedCount;
+  if (stopping > 0) {
+    final l10n = context.l10n;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.queueClearAllConfirm(stopping)),
+        content: Text(l10n.queueClearAllBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            key: const Key('queue.confirmClearAll'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.queueClearAll),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false)) return;
+  }
+  await vm.clearAll();
 }
 
 class _JobRow extends ConsumerWidget {

@@ -31,6 +31,96 @@ void main() {
 
   tearDown(() => repo.dispose());
 
+  group('enqueueAll', () {
+    test('adds one job per item in order with one emit', () {
+      var emits = 0;
+      repo.changes.listen((_) => emits++);
+      final jobs = repo.enqueueAll(
+        [
+          (url: 'u/a', title: 'a'),
+          (url: 'u/b', title: 'b'),
+          (url: 'u/c', title: 'c'),
+        ],
+        preset: QualityPreset.audioMp3,
+        outDir: out,
+      );
+      expect(jobs.map((j) => j.title), ['a', 'b', 'c']);
+      expect(jobs.map((j) => j.request.url), ['u/a', 'u/b', 'u/c']);
+      expect(jobs.map((j) => j.id).toSet(), hasLength(3));
+      expect(
+        jobs.every((j) => j.request.preset == QualityPreset.audioMp3),
+        isTrue,
+      );
+      expect(jobs.map(status), [
+        JobStatus.running,
+        JobStatus.running,
+        JobStatus.queued,
+      ]);
+      // One add for all three, then one per start.
+      expect(emits, 3);
+    });
+
+    test('an empty list adds nothing', () {
+      var emits = 0;
+      repo.changes.listen((_) => emits++);
+      expect(
+        repo.enqueueAll(const [], preset: QualityPreset.best, outDir: out),
+        isEmpty,
+      );
+      expect(emits, 0);
+    });
+  });
+
+  group('cancelQueued', () {
+    test('cancels only queued jobs', () async {
+      final jobs = [add('a'), add('b'), add('c'), add('d')];
+      await repo.pause(jobs[1].id);
+      await settle();
+      // a and c run, b is paused, d waits.
+      expect(jobs.map(status), [
+        JobStatus.running,
+        JobStatus.paused,
+        JobStatus.running,
+        JobStatus.queued,
+      ]);
+      await repo.cancelQueued();
+      expect(jobs.map(status), [
+        JobStatus.running,
+        JobStatus.paused,
+        JobStatus.running,
+        JobStatus.cancelled,
+      ]);
+      expect(media.cancelled, isEmpty);
+    });
+  });
+
+  group('clearAll', () {
+    test('stops every unfinished job and removes all', () async {
+      final jobs = [add('a'), add('b'), add('c'), add('d')];
+      await repo.pause(jobs[1].id);
+      await settle();
+      media.finish(jobs[0].id);
+      await settle();
+      final events = <List<DownloadJob>>[];
+      final sub = repo.changes.listen(events.add);
+      await repo.clearAll();
+      await settle();
+      expect(repo.jobs, isEmpty);
+      expect(events.last, isEmpty);
+      expect(media.cancelled.toSet(), {jobs[1].id, jobs[2].id, jobs[3].id});
+      await sub.cancel();
+    });
+
+    test('does nothing on an empty queue', () async {
+      final events = <List<DownloadJob>>[];
+      final sub = repo.changes.listen(events.add);
+      await repo.clearAll();
+      await settle();
+      expect(events, isEmpty);
+      await sub.cancel();
+    });
+  });
+
   group('enqueue', () {
     test('starts jobs up to the limit, in order', () async {
       final jobs = [add('a'), add('b'), add('c')];

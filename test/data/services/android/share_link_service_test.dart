@@ -70,6 +70,51 @@ void main() {
     });
   });
 
+  group('videoKey', () {
+    test('matches YouTube links by video id', () {
+      const id = 'dQw4w9WgXcQ';
+      expect(youtubeVideoId('https://youtu.be/$id'), id);
+      expect(videoKey('https://youtu.be/$id'), id);
+      expect(videoKey(' https://www.youtube.com/watch?v=$id&t=3 '), id);
+      expect(videoKey('https://vimeo.com/1 '), 'https://vimeo.com/1');
+      expect(youtubeVideoId('https://vimeo.com/1'), isNull);
+    });
+  });
+
+  group('isPlaylistLink', () {
+    test('knows YouTube playlist and channel links', () {
+      for (final url in [
+        'https://www.youtube.com/playlist?list=PLztm2TugcV9QvWcb7LWVT0jIdNRdtx_fV',
+        'https://m.youtube.com/playlist?list=PL1',
+        'https://music.youtube.com/playlist?list=OLAK1',
+        'https://www.youtube.com/watch?list=PL1',
+        'https://www.youtube.com/@BlenderOfficial',
+        'https://www.youtube.com/@BlenderOfficial/videos',
+        'https://www.youtube.com/channel/UC1',
+        'https://www.youtube.com/c/Name',
+        'https://www.youtube.com/user/Name/videos',
+      ]) {
+        expect(isPlaylistLink(url), isTrue, reason: url);
+      }
+    });
+
+    test('treats videos and other links as not playlists', () {
+      for (final url in [
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1',
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'https://www.youtube.com/playlist',
+        'https://www.youtube.com/shorts/dQw4w9WgXcQ',
+        'https://www.youtube.com/channel',
+        'https://www.youtube.com/',
+        'https://youtu.be/dQw4w9WgXcQ?list=PL1',
+        'https://vimeo.com/channels/staffpicks',
+        'not a url ::',
+      ]) {
+        expect(isPlaylistLink(url), isFalse, reason: url);
+      }
+    });
+  });
+
   group('ShareLinkService', () {
     late ShareHost host;
     late List<ShareRequest?> events;

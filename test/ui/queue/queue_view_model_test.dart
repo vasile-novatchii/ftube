@@ -59,6 +59,29 @@ void main() {
       expect(state().jobs.map((j) => j.title), ['b', 'c']);
     });
 
+    test('cancelQueued cancels the waiting jobs', () async {
+      final a = add('a');
+      add('b');
+      final c = add('c');
+      expect(state().hasQueued, isTrue);
+      await vm().cancelQueued();
+      expect(state().hasQueued, isFalse);
+      expect(repo().job(a.id)!.status, JobStatus.running);
+      expect(repo().job(c.id)!.status, JobStatus.cancelled);
+    });
+
+    test('clearAll stops and removes every job', () async {
+      final a = add('a');
+      add('b');
+      env.media.finish(a.id);
+      await pumpEventQueue();
+      expect(state().unfinishedCount, 1);
+      await vm().clearAll();
+      await pumpEventQueue();
+      expect(state().jobs, isEmpty);
+      expect(state().unfinishedCount, 0);
+    });
+
     test('cancel, retry and remove', () async {
       final a = add('a');
       await vm().cancel(a.id);

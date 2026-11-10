@@ -34,8 +34,14 @@ final _youtubeId = RegExp(r'^[\w-]{11}$');
 
 /// The thumbnail of a YouTube video link, derived from its id without a
 /// network call (spec-v0.4-share D-64), or null for other links.
-String? youtubeThumbnail(String url) {
-  final uri = Uri.tryParse(url);
+String? youtubeThumbnail(String url) => switch (youtubeVideoId(url)) {
+  final id? => 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+  null => null,
+};
+
+/// The id of a YouTube video link, or null for other links.
+String? youtubeVideoId(String url) {
+  final uri = Uri.tryParse(url.trim());
   if (uri == null) return null;
   final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^(www|m)\.'), '');
   final segments = uri.pathSegments;
@@ -49,7 +55,29 @@ String? youtubeThumbnail(String url) {
     _ => null,
   };
   if (id == null || !_youtubeId.hasMatch(id)) return null;
-  return 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
+  return id;
+}
+
+/// What identifies a video in the queue: its YouTube id when it has one, so
+/// `youtu.be/x` and `watch?v=x` match, else the link (spec-v0.5 D-83).
+String videoKey(String url) => youtubeVideoId(url) ?? url.trim();
+
+/// Whether [url] is a YouTube playlist or channel link, known from the link
+/// alone so the share popup never offers Download for it while the slower
+/// playlist fetch runs (spec-v0.5 D-82). A `watch?v=…&list=…` link is a video.
+bool isPlaylistLink(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^(www|m)\.'), '');
+  if (host != 'youtube.com' && host != 'music.youtube.com') return false;
+  final query = uri.queryParameters;
+  return switch (uri.pathSegments) {
+    ['playlist', ...] => query.containsKey('list'),
+    ['watch', ...] => query.containsKey('list') && !query.containsKey('v'),
+    ['channel' || 'c' || 'user', _, ...] => true,
+    [final handle, ...] => handle.startsWith('@'),
+    _ => false,
+  };
 }
 
 /// Talks to `ShareChannel.kt`: receives shares and closes the popup

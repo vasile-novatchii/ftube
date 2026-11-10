@@ -173,3 +173,93 @@ sequenceDiagram
 - "Load more" past 200 entries, and searching inside a playlist.
 - Per-video quality or format choice inside a playlist.
 - Watching a playlist or channel for new videos.
+
+## 10. Changes from v0.4 (share popup, presets, update wait)
+
+v0.4 added the share popup, the 360p and M4A presets and the info fetch that doesn't wait for the yt-dlp update ([spec-v0.4-share.md](spec-v0.4-share.md) section 10). This section adapts v0.5 to them.
+
+**A playlist link shared into the popup**
+
+```mermaid
+sequenceDiagram
+  participant S as ShareView
+  participant V as ShareViewModel
+  participant M as MediaService
+  participant H as HomeViewModel
+  participant A as AppShell
+  V->>M: fetchInfo(url)
+  alt MediaInfo
+    M-->>V: video
+    V-->>S: chips + Download (as in v0.4)
+  else PlaylistInfo
+    M-->>V: playlist
+    V-->>S: "This link is a playlist" + Open in Ftube
+    S->>V: openInApp()
+    V->>H: openLink(url)
+    H->>A: linkOpened (switch to Home)
+    H->>M: fetchInfo(url)
+    V->>S: session.openApp()
+  end
+```
+
+- D-77: playlist downloads offer every Home chip: Best, 1080p, 720p, 480p, 360p, MP3, M4A, OGG. This replaces the list in D-55. Formats aren't known per entry, so the chips aren't pruned as in the popup (D-73).
+- D-78: Home's single-video chips get 360p and M4A too, so Home, the popup and playlists offer the same presets.
+- D-79: a playlist or channel link in the share popup shows "This link is a playlist" and "Open in Ftube". That opens the app on Home with the link, fetched as a playlist. A `watch?v=…&list=…` link still opens the video in the popup (`--no-playlist`, D-55).
+- D-80: playlist fetches, including the `--yes-playlist` one, go through `fetchInfo`, so they don't wait for the yt-dlp update either (D-75).
+- D-81: a YouTube channel tab has no `playlist_count`, so with an unknown count and a full page of 200 entries the panel says "Showing the first 200" and hides the total. This amends DoD-38.
+- D-82: the share popup knows a YouTube playlist or channel link from the URL alone (`/playlist?list=`, `/@handle`, `/channel/`, `/c/`, `/user/`) and shows the playlist message at once without a fetch. Otherwise its Download, active from the start (D-65), would queue the whole link as one job before the slow playlist fetch ends. Other sites' playlists are still found by the fetch.
+
+**Definition of Done**
+
+- DoD-48: Sharing a playlist link shows the playlist message; "Open in Ftube" shows its videos on Home.
+- DoD-49: Home and the playlist panel offer 360p and M4A.
+
+**Risks**
+
+- R-34: a preset that an entry lacks (360p for a video that starts at 480p, M4A on a site without it) fails or falls back per entry. M4A falls back to the best audio; a height chip fails that job, which can be retried with another preset.
+
+## 11. Changes from the first v0.5 device test
+
+**Home's playlist screen after the changes**
+
+```mermaid
+stateDiagram-v2
+  [*] --> Collapsed: fetch a playlist
+  [*] --> Expanded: fetch a channel (tabs)
+  Collapsed --> Expanded: Show videos
+  Expanded --> Collapsed: Hide videos
+  Expanded --> Child: tap a tab / Show playlist
+  Child --> Expanded: back row or Android back (no fetch)
+  Collapsed --> Collapsed: Download (queued rows leave the selection)
+```
+
+**What a row shows**
+
+```mermaid
+flowchart TD
+  e[PlaylistEntry] --> l{isList?}
+  l -->|yes| tab["tab row, opens as a child (D-85)"]
+  l -->|no| u{unavailable?}
+  u -->|yes| grey[greyed, never queued]
+  u -->|no| a{"active job for its video?<br/>queued / running / paused"}
+  a -->|yes| st["status label, checkbox disabled (D-83)"]
+  a -->|no| cb[checkbox]
+  classDef new fill:#d4f7d4,stroke:#2e7d32
+  class tab,st new
+```
+
+- D-83: a video that has a queued, running or paused job can't be queued again. Playlist rows show that status with the checkbox disabled, a playlist Download skips them and the queued entries leave the selection, so the button turns off by itself. Home's single-video Download is off while that video is active. Videos match by YouTube id when there is one (`youtu.be/x` = `watch?v=x`), else by link. A finished, failed or cancelled video can be queued again on purpose.
+- D-84: the video list is collapsible. A playlist opens collapsed, with every available video selected, so Download works at once; the header shows title, count, "N selected" and Show/Hide videos. Select all/none show only while expanded. A channel opens expanded, since its rows are tabs to pick from.
+- D-85: opening a channel tab or "Show playlist" keeps the previous screen (link, result, selection, open state) on a back stack. A "← <title>" row above the title and Android back on Home return to it without a fetch. A link typed, pasted, or opened from the share popup clears the stack.
+- D-86: the queue gets "Clear all", shown whenever it has jobs. It cancels every queued, running and paused job, then removes all rows; downloaded files stay. It asks first when something is still queued, running or paused.
+
+**Definition of Done**
+
+- DoD-50: Tapping a playlist's Download twice queues each video once; active rows show their status.
+- DoD-51: A playlist opens collapsed and can be downloaded without expanding it; Show/Hide videos toggles the list.
+- DoD-52: From a channel, opening Videos and then going back (row or Android back) shows the channel tabs again at once.
+- DoD-53: "Clear all" empties the queue after confirmation, leaving finished files in place.
+
+**Risks**
+
+- R-35: the back stack keeps full playlists (up to 200 entries each) in memory; it is cleared by any fresh link, so depth stays small in practice.

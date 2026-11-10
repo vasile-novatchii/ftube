@@ -22,7 +22,12 @@ abstract class QueueState with _$QueueState {
   /// Queued and running jobs, shown as the badge on Home.
   int get activeCount => jobs.where((j) => j.status.isActive).length;
 
+  bool get hasQueued => jobs.any((j) => j.status == JobStatus.queued);
+
   bool get hasCompleted => jobs.any((j) => j.status == JobStatus.completed);
+
+  /// Jobs that "Clear all" would stop: queued, running or paused.
+  int get unfinishedCount => jobs.where((j) => j.status.canCancel).length;
 }
 
 /// The download queue on the Home screen.
@@ -53,7 +58,13 @@ class QueueViewModel extends _$QueueViewModel {
 
   void remove(String id) => ref.read(downloadRepositoryProvider).remove(id);
 
+  Future<void> cancelQueued() =>
+      ref.read(downloadRepositoryProvider).cancelQueued();
+
   void clearFinished() => ref.read(downloadRepositoryProvider).clearFinished();
+
+  /// Stops and removes every job (spec-v0.5 D-86).
+  Future<void> clearAll() => ref.read(downloadRepositoryProvider).clearAll();
 
   /// Opens the finished file with the system app. Returns the error to show,
   /// or null when it opened.

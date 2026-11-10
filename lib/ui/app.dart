@@ -58,7 +58,10 @@ class AppRoot extends ConsumerWidget {
     return PopScope(
       canPop: share == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(ref.read(shareSessionProvider.notifier).close());
+        // Home's back step blocks the pop too (spec-v0.5 D-85).
+        if (!didPop && share != null) {
+          unawaited(ref.read(shareSessionProvider.notifier).close());
+        }
       },
       child: Stack(
         children: [

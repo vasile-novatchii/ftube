@@ -240,6 +240,35 @@ void main() {
       expect(find.text('Song'), findsOneWidget);
     });
 
+    testWidgets('a playlist opens on Home in the app', (tester) async {
+      const list = 'https://youtube.com/playlist?list=PL1';
+      env.media.onFetch = (u) async => u == list
+          ? const PlaylistInfo(
+              url: list,
+              title: 'Mix',
+              entries: [PlaylistEntry(url: 'https://youtu.be/a', title: 'A')],
+            )
+          : info;
+      await pump(tester);
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      await share(tester, list);
+      expect(
+        find.text(
+          'This link is a playlist. Open it in Ftube to pick the videos.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('share.download')), findsNothing);
+
+      await tap(tester, 'share.openPlaylist');
+      await tester.pumpAndSettle();
+      expect(hostCalls().last, 'openApp');
+      expect(find.byType(ShareView), findsNothing);
+      expect(find.byKey(const Key('playlist.title')), findsOneWidget);
+      expect(find.text('Download (1)'), findsOneWidget);
+    });
+
     testWidgets('a missing folder shows its own message', (tester) async {
       env.failLookups = true;
       await pump(tester);

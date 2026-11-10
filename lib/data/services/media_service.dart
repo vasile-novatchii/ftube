@@ -9,8 +9,10 @@ import '../../domain/models/models.dart';
 /// Failures are reported as `FtubeException` subclasses, as a thrown error
 /// for futures and as a stream error for streams.
 abstract interface class MediaService {
-  /// Reads title, duration, thumbnail and formats of [url].
-  Future<MediaInfo> fetchInfo(String url);
+  /// Reads title, duration, thumbnail and formats of [url], or the entries
+  /// of a playlist link. [playlist] reads the playlist of a video link that
+  /// has one (`watch?v=…&list=…`, spec-v0.5 D-55).
+  Future<FetchResult> fetchInfo(String url, {bool playlist = false});
 
   /// Runs [req] and emits progress until a `JobPhase.finished` update with
   /// the output path, then closes the stream.

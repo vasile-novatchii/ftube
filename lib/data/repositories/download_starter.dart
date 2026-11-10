@@ -35,12 +35,7 @@ class DownloadStarter {
     QualityPreset preset, {
     MediaFormat? format,
   }) async {
-    final storage = _storage;
-    if (storage != null && await storage.status() != StorageAccess.granted) {
-      throw const StorageBlocked();
-    }
-    final dir = await _downloadDir().catchError((Object _) => null);
-    if (dir == null) throw const NoDownloadFolder();
+    final dir = await _outDir();
     return _repo.enqueue(
       url: info.url,
       title: info.title,
@@ -48,6 +43,35 @@ class DownloadStarter {
       formatId: selector(format),
       outDir: dir,
     );
+  }
+
+  /// Queues one job per entry with [preset] (spec-v0.5 D-58). Entries that
+  /// can't be downloaded are skipped.
+  ///
+  /// Throws [StorageBlocked] or [NoDownloadFolder] when it can't.
+  Future<List<DownloadJob>> startAll(
+    List<PlaylistEntry> entries,
+    QualityPreset preset,
+  ) async {
+    final dir = await _outDir();
+    return _repo.enqueueAll(
+      [
+        for (final e in entries)
+          if (e.downloadable) (url: e.url, title: e.title),
+      ],
+      preset: preset,
+      outDir: dir,
+    );
+  }
+
+  Future<Directory> _outDir() async {
+    final storage = _storage;
+    if (storage != null && await storage.status() != StorageAccess.granted) {
+      throw const StorageBlocked();
+    }
+    final dir = await _downloadDir().catchError((Object _) => null);
+    if (dir == null) throw const NoDownloadFolder();
+    return dir;
   }
 
   /// The `formatId` for the request. yt-dlp downloads a video-only format

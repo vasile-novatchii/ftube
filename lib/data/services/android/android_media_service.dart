@@ -57,38 +57,42 @@ class AndroidMediaService implements MediaService {
   /// a failure with the old yt-dlp waits for the update and tries again
   /// (spec-v0.4-share D-75).
   @override
-  Future<MediaInfo> fetchInfo(String url) async {
+  Future<FetchResult> fetchInfo(String url, {bool playlist = false}) async {
     final trimmed = url.trim();
     _checkUrl(trimmed);
     final ready = _ready;
     if (ready != null) {
       await ready;
-      return _info(trimmed);
+      return _info(trimmed, playlist);
     }
     try {
-      final info = await _info(trimmed);
+      final info = await _info(trimmed, playlist);
       unawaited(_ensureReady());
       return info;
     } on Network {
       rethrow;
     } on FtubeException {
       await _ensureReady();
-      return _info(trimmed);
+      return _info(trimmed, playlist);
     }
   }
 
-  Future<MediaInfo> _info(String url) {
-    final run = _runInfo(url);
+  Future<FetchResult> _info(String url, bool playlist) {
+    final run = _runInfo(url, playlist);
     final done = run.then<void>((_) {}, onError: (Object _) {});
     _infoRuns.add(done);
     unawaited(done.whenComplete(() => _infoRuns.remove(done)));
     return run;
   }
 
-  Future<MediaInfo> _runInfo(String url) async {
+  Future<FetchResult> _runInfo(String url, bool playlist) async {
     final out = StringBuffer();
     final job = _Job('info-${_infoCount++}');
-    final r = await _runYtDlp(job, YtDlpArgs.androidInfo(url), out.writeln);
+    final r = await _runYtDlp(
+      job,
+      YtDlpArgs.androidInfo(url, playlist: playlist),
+      out.writeln,
+    );
     if (r.exitCode != 0) throw YtDlpOutput.mapError(r.exitCode, r.stderr);
     return YtDlpOutput.parseInfo(out.toString(), url: url);
   }

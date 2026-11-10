@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/l10n.dart';
+import '../home/view_model/home_view_model.dart';
 import '../home/widgets/home_view.dart';
 import '../library/widgets/library_view.dart';
 import '../queue/view_model/queue_view_model.dart';
@@ -34,6 +35,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       (Icons.video_library_outlined, Icons.video_library, l10n.navLibrary),
       (Icons.settings_outlined, Icons.settings, l10n.navSettings),
     ];
+    ref.listen(homeViewModelProvider.select((s) => s.linkOpened), (_, _) {
+      if (_index != 0) setState(() => _index = 0);
+    });
     final active = ref.watch(activeDownloadCountProvider);
     Widget badged(IconData icon) => Badge(
       isLabelVisible: active > 0,

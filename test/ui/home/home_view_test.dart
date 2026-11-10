@@ -267,6 +267,211 @@ void main() {
       expect(text('home.clipboard.use'), findsOneWidget);
     });
 
+    group('playlist', () {
+      const listUrl = 'https://youtube.com/playlist?list=PL1';
+      const watch = 'https://www.youtube.com/watch?v=abc&list=PL1';
+      const list = PlaylistInfo(
+        url: listUrl,
+        title: 'Mix',
+        uploader: 'Band',
+        totalCount: 300,
+        truncated: true,
+        entries: [
+          PlaylistEntry(
+            url: 'https://youtu.be/a',
+            title: 'A',
+            duration: Duration(minutes: 1, seconds: 5),
+          ),
+          PlaylistEntry(url: 'https://youtu.be/b', title: 'B'),
+          PlaylistEntry(
+            url: 'https://youtu.be/p',
+            title: '[Private video]',
+            unavailable: true,
+          ),
+          PlaylistEntry(
+            url: 'https://youtube.com/@c/videos',
+            title: 'Videos',
+            isList: true,
+          ),
+        ],
+      );
+
+      Future<void> fetchLink(WidgetTester tester, String link) async {
+        await tester.enterText(text('home.url'), link);
+        await tester.pump();
+        await tester.tap(text('home.fetch'));
+        await tester.pumpAndSettle();
+      }
+
+      setUp(() {
+        env.media.onFetch = (u) async =>
+            u == listUrl || env.media.fetchedPlaylists.contains(u)
+            ? list
+            : info;
+      });
+
+      testWidgets('shows a checklist and queues the selection', (tester) async {
+        await pump(tester);
+        await fetchLink(tester, listUrl);
+        expect(text('playlist.title'), findsOneWidget);
+        expect(find.text('Band · 300 videos · 2 selected'), findsOneWidget);
+        expect(text('playlist.truncated'), findsOneWidget);
+        expect(find.text('Showing 4 of 300'), findsOneWidget);
+        expect(find.text('Hide videos'), findsOneWidget);
+        await tester.tap(text('playlist.toggle'));
+        await tester.pump();
+        expect(text('playlist.entry.0'), findsNothing);
+        expect(text('playlist.all'), findsNothing);
+        expect(find.text('Download (2)'), findsOneWidget);
+        await tester.tap(text('playlist.toggle'));
+        await tester.pump();
+        expect(find.text('1:05'), findsOneWidget);
+        expect(find.text('Unavailable'), findsOneWidget);
+        expect(text('home.formats'), findsNothing);
+        expect(text('home.preset.p360'), findsOneWidget);
+        expect(text('home.preset.audioM4a'), findsOneWidget);
+        expect(find.text('Download (2)'), findsOneWidget);
+
+        await tester.tap(text('playlist.entry.1'));
+        await tester.pump();
+        expect(find.text('Download (1)'), findsOneWidget);
+        await tester.tap(text('playlist.none'));
+        await tester.pump();
+        expect(
+          tester.widget<ButtonStyleButton>(text('home.download')).onPressed,
+          isNull,
+        );
+        await tester.tap(text('playlist.all'));
+        await tester.pump();
+        await tester.tap(text('home.preset.audioMp3'));
+        await tester.pump();
+        await tester.tap(text('home.download'));
+        await tester.pump();
+        await tester.pump();
+        expect(find.text('2 downloads queued.'), findsOneWidget);
+        final jobs = container.read(downloadRepositoryProvider).jobs;
+        expect(jobs.map((j) => j.title), ['A', 'B']);
+        expect(jobs.map((j) => j.request.preset).toSet(), {
+          QualityPreset.audioMp3,
+        });
+      });
+
+      testWidgets('a channel tab opens like a new link', (tester) async {
+        await pump(tester);
+        await fetchLink(tester, listUrl);
+        await tester.tap(text('playlist.entry.3'));
+        await tester.pumpAndSettle();
+        expect(env.media.fetched.last, 'https://youtube.com/@c/videos');
+        expect(text('home.title'), findsOneWidget);
+      });
+
+      testWidgets('a missing folder is reported for a playlist', (
+        tester,
+      ) async {
+        env.failLookups = true;
+        await pump(tester);
+        await fetchLink(tester, listUrl);
+        await tester.tap(text('home.download'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('The download folder is not available.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('an unknown count hides the total', (tester) async {
+        env.media.onFetch = (_) async =>
+            list.copyWith(totalCount: null, uploader: null);
+        await pump(tester);
+        await fetchLink(tester, listUrl);
+        expect(find.text('2 selected'), findsOneWidget);
+        expect(find.text('Showing the first 4'), findsOneWidget);
+      });
+
+      testWidgets('queued videos show their status and stay unticked', (
+        tester,
+      ) async {
+        await pump(tester);
+        await fetchLink(tester, listUrl);
+        await tester.tap(text('home.download'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        for (final i in [0, 1]) {
+          expect(
+            find.descendant(
+              of: text('playlist.entry.$i'),
+              matching: find.text('Downloading'),
+            ),
+            findsOneWidget,
+          );
+        }
+        expect(find.text('Download (0)'), findsOneWidget);
+        expect(
+          tester.widget<ButtonStyleButton>(text('home.download')).onPressed,
+          isNull,
+        );
+        await tester.tap(text('playlist.entry.0'));
+        await tester.pump();
+        expect(find.text('Download (0)'), findsOneWidget);
+      });
+
+      testWidgets('the back row and Android back return to the list', (
+        tester,
+      ) async {
+        await pump(tester);
+        await fetchLink(tester, listUrl);
+        expect(text('home.back'), findsNothing);
+        await tester.tap(text('playlist.entry.3'));
+        await tester.pumpAndSettle();
+        expect(text('home.title'), findsOneWidget);
+        expect(
+          find.descendant(of: text('home.back'), matching: find.text('Mix')),
+          findsOneWidget,
+        );
+        await tester.tap(text('home.back'));
+        await tester.pumpAndSettle();
+        expect(text('playlist.title'), findsOneWidget);
+        expect(text('home.back'), findsNothing);
+
+        await tester.tap(text('playlist.entry.3'));
+        await tester.pumpAndSettle();
+        final popped = await tester
+            .state<NavigatorState>(find.byType(Navigator))
+            .maybePop();
+        await tester.pumpAndSettle();
+        expect(popped, isTrue);
+        expect(text('playlist.title'), findsOneWidget);
+      });
+
+      testWidgets('a video with list= offers Show playlist', (tester) async {
+        await pump(tester);
+        await fetchLink(tester, url);
+        expect(text('home.showPlaylist'), findsNothing);
+        await fetchLink(tester, watch);
+        expect(find.text('This video is part of a playlist.'), findsOneWidget);
+        await tester.tap(text('home.showPlaylist'));
+        await tester.pumpAndSettle();
+        expect(env.media.fetchedPlaylists, [watch]);
+        expect(text('playlist.title'), findsOneWidget);
+      });
+    });
+
+    testWidgets('a queued video says so and cannot be queued again', (
+      tester,
+    ) async {
+      await pump(tester);
+      await enterAndFetch(tester);
+      expect(text('home.inQueue'), findsNothing);
+      await tester.tap(text('home.download'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Already in the queue: Downloading'), findsOneWidget);
+      expect(
+        tester.widget<ButtonStyleButton>(text('home.download')).onPressed,
+        isNull,
+      );
+    });
+
     testWidgets('keeps the video when the view is rebuilt', (tester) async {
       await pump(tester);
       await enterAndFetch(tester);

@@ -117,6 +117,19 @@ void main() {
     });
   });
 
+  group('PlaylistEntry', () {
+    test('only plain available videos are downloadable', () {
+      const e = PlaylistEntry(url: 'u', title: 't');
+      expect(e.downloadable, isTrue);
+      expect(e.copyWith(isList: true).downloadable, isFalse);
+      expect(e.copyWith(unavailable: true).downloadable, isFalse);
+      const p = PlaylistInfo(url: 'u', title: 't');
+      expect(p.entries, isEmpty);
+      expect(p.truncated, isFalse);
+      expect(p, const PlaylistInfo(url: 'u', title: 't'));
+    });
+  });
+
   group('LibraryKind.fromPath', () {
     test('detects video, audio and other by extension', () {
       expect(LibraryKind.fromPath('/a/b/clip.MP4'), LibraryKind.video);

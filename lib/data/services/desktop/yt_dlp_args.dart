@@ -60,12 +60,33 @@ abstract final class YtDlpArgs {
     if (denoPath != null) ...['--js-runtimes', 'deno:$denoPath'],
   ];
 
+  /// Most playlist entries one fetch reads (spec-v0.5 D-56).
+  static const playlistLimit = 200;
+
+  /// Info flags: playlists come back as a flat list of their first
+  /// [playlistLimit] entries (D-55, D-56). [playlist] reads the playlist of
+  /// a `watch?v=…&list=…` link instead of its video. The later
+  /// `--yes-playlist` overrides `--no-playlist`.
+  static List<String> _info(String url, {required bool playlist}) => [
+    if (playlist) '--yes-playlist',
+    '--flat-playlist',
+    '-I',
+    '1:$playlistLimit',
+    '-J',
+    '--',
+    url,
+  ];
+
   /// `yt-dlp -J` for [url].
   static List<String> info(
     String url, {
     required String ffmpegDir,
     String? denoPath,
-  }) => [...common(ffmpegDir: ffmpegDir, denoPath: denoPath), '-J', '--', url];
+    bool playlist = false,
+  }) => [
+    ...common(ffmpegDir: ffmpegDir, denoPath: denoPath),
+    ..._info(url, playlist: playlist),
+  ];
 
   /// A download into [tempDir] as `media.<ext>`. The service then moves
   /// it to `outDir` under the title (spec-v0.3 D-39), so yt-dlp never sees
@@ -113,12 +134,10 @@ abstract final class YtDlpArgs {
 
   /// `yt-dlp -J` on Android. youtubedl-android adds `--ffmpeg-location` and
   /// `--js-runtimes` itself (spec-v0.3 D-31).
-  static List<String> androidInfo(String url) => [
+  static List<String> androidInfo(String url, {bool playlist = false}) => [
     '--ignore-config',
     '--no-playlist',
-    '-J',
-    '--',
-    url,
+    ..._info(url, playlist: playlist),
   ];
 
   /// A download on Android into [tempDir] (spec-v0.3 D-34). yt-dlp has no

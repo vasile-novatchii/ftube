@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -82,7 +83,7 @@ void main() {
       final info = YtDlpOutput.parseInfo(
         File('test/fixtures/yt_dlp/info_video.json').readAsStringSync(),
         url: 'https://youtu.be/aqz-KE-bpKQ',
-      );
+      ) as MediaInfo;
       expect(info.url, 'https://youtu.be/aqz-KE-bpKQ');
       expect(info.title, startsWith('Big Buck Bunny'));
       expect(info.uploader, 'Blender');
@@ -116,7 +117,7 @@ void main() {
            "height": 360, "filesize_approx": 99},
           {"format_id": "direct"},
           {"ext": "mp4"}
-        ]}''', url: 'https://x.test/v');
+        ]}''', url: 'https://x.test/v') as MediaInfo;
       expect(info.title, 'https://x.test/v');
       expect(info.uploader, 'C');
       expect(info.duration, const Duration(milliseconds: 1500));
@@ -128,7 +129,139 @@ void main() {
       expect(info.formats.last.container, '?');
     });
 
-    test('rejects bad JSON and playlists', () {
+    test('parses a flat playlist', () {
+      final list = YtDlpOutput.parseInfo('''
+        {"_type": "playlist", "title": "Mix", "channel": "C",
+         "playlist_count": 3, "entries": [
+          {"_type": "url", "ie_key": "Youtube", "id": "a",
+           "url": "https://www.youtube.com/watch?v=a", "title": "A",
+           "duration": 61, "thumbnails": [{"url": "s.jpg"}, {"url": "l.jpg"}]},
+          {"_type": "url", "ie_key": "Youtube", "id": "b",
+           "title": "[Private video]"},
+          {"_type": "url", "ie_key": "Youtube", "id": "c", "url": "u/c",
+           "title": "C", "availability": "needs_auth", "thumbnail": "c.jpg"},
+          {"_type": "url", "ie_key": "Generic"},
+          "junk"
+        ]}''', url: 'https://x.test/list') as PlaylistInfo;
+      expect(list.url, 'https://x.test/list');
+      expect(list.title, 'Mix');
+      expect(list.uploader, 'C');
+      expect(list.totalCount, 3);
+      expect(list.truncated, isFalse);
+      expect(list.entries, [
+        const PlaylistEntry(
+          url: 'https://www.youtube.com/watch?v=a',
+          title: 'A',
+          duration: Duration(seconds: 61),
+          thumbnailUrl: 'l.jpg',
+        ),
+        const PlaylistEntry(
+          url: 'https://www.youtube.com/watch?v=b',
+          title: '[Private video]',
+          unavailable: true,
+        ),
+        const PlaylistEntry(
+          url: 'u/c',
+          title: 'C',
+          thumbnailUrl: 'c.jpg',
+          unavailable: true,
+        ),
+      ]);
+    });
+
+    test('channel tabs are lists, and a long playlist is truncated', () {
+      final channel = YtDlpOutput.parseInfo('''
+        {"_type": "playlist", "playlist_count": 900, "entries": [
+          {"_type": "url", "ie_key": "YoutubeTab", "url": "https://y/@c/videos",
+           "title": "C - Videos"},
+          {"_type": "playlist", "webpage_url": "https://y/@c/shorts"},
+          {"_type": "url", "ie_key": "Youtube", "url": "https://y/v"}
+        ]}''', url: 'https://y/@c') as PlaylistInfo;
+      expect(channel.title, 'https://y/@c');
+      expect(channel.uploader, isNull);
+      expect(channel.truncated, isTrue);
+      expect(channel.entries.map((e) => (e.title, e.isList)), [
+        ('C - Videos', true),
+        ('https://y/@c/shorts', true),
+        ('https://y/v', false),
+      ]);
+      expect(channel.entries.map((e) => e.downloadable), [false, false, true]);
+    });
+
+    test('parses a real flat playlist capture (trimmed to 3 of 182)', () {
+      const link = 'https://www.youtube.com/playlist?list=PLx';
+      final list = YtDlpOutput.parseInfo(
+        File('test/fixtures/yt_dlp/info_playlist.json').readAsStringSync(),
+        url: link,
+      ) as PlaylistInfo;
+      expect(list.url, link);
+      expect(list.title, 'Popular Music Videos');
+      expect(list.uploader, 'Music');
+      expect(list.totalCount, 182);
+      expect(list.truncated, isTrue);
+      expect(list.entries, hasLength(3));
+      final first = list.entries.first;
+      expect(first.url, 'https://www.youtube.com/watch?v=fOT0BUpITw8');
+      expect(first.title, startsWith('BELLAKEO'));
+      expect(first.duration, const Duration(seconds: 235));
+      expect(first.thumbnailUrl, contains('ytimg.com'));
+      expect(list.entries.every((e) => e.downloadable), isTrue);
+    });
+
+    test('parses a real channel capture as its tabs', () {
+      final channel = YtDlpOutput.parseInfo(
+        File('test/fixtures/yt_dlp/info_channel.json').readAsStringSync(),
+        url: 'https://www.youtube.com/@BlenderOfficial',
+      ) as PlaylistInfo;
+      expect(channel.title, 'Blender');
+      expect(channel.truncated, isFalse);
+      expect(channel.entries.map((e) => (e.title, e.url, e.isList)), [
+        (
+          'Blender - Videos',
+          'https://www.youtube.com/@BlenderOfficial/videos',
+          true,
+        ),
+        (
+          'Blender - Live',
+          'https://www.youtube.com/@BlenderOfficial/streams',
+          true,
+        ),
+        (
+          'Blender - Shorts',
+          'https://www.youtube.com/@BlenderOfficial/shorts',
+          true,
+        ),
+      ]);
+    });
+
+    test('a full first page without a count is truncated', () {
+      String json(int n) => jsonEncode({
+        '_type': 'playlist',
+        'entries': [
+          for (var i = 0; i < n; i++) {'url': 'u$i', 'title': 't$i'},
+        ],
+      });
+      final full = YtDlpOutput.parseInfo(json(200), url: 'u') as PlaylistInfo;
+      expect(full.totalCount, isNull);
+      expect(full.truncated, isTrue);
+      final short = YtDlpOutput.parseInfo(json(199), url: 'u') as PlaylistInfo;
+      expect(short.truncated, isFalse);
+    });
+
+    test('rejects bad JSON and empty playlists', () {
+      expect(
+        () => YtDlpOutput.parseInfo(
+          '{"_type": "playlist", "entries": [{"title": "no url"}]}',
+          url: 'u',
+        ),
+        throwsA(
+          isA<Unsupported>().having(
+            (e) => e.detail,
+            'detail',
+            'empty playlist',
+          ),
+        ),
+      );
       expect(
         () => YtDlpOutput.parseInfo('nope', url: 'u'),
         throwsA(isA<Unsupported>()),

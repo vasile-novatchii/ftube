@@ -57,6 +57,22 @@ void main() {
       expect(job.request.outDir.path, '/home/me/Downloads/Ftube');
     });
 
+    test('startAll queues the downloadable entries', () async {
+      final queued = await starter().startAll(const [
+        PlaylistEntry(url: 'u/a', title: 'A'),
+        PlaylistEntry(url: 'u/b', title: 'B', unavailable: true),
+        PlaylistEntry(url: 'u/c', title: 'C', isList: true),
+        PlaylistEntry(url: 'u/d', title: 'D'),
+      ], QualityPreset.audioM4a);
+      expect(queued.map((j) => j.title), ['A', 'D']);
+      expect(jobs().map((j) => j.request.url), ['u/a', 'u/d']);
+      expect(
+        jobs().map((j) => (j.request.preset, j.request.formatId)).toSet(),
+        {(QualityPreset.audioM4a, null)},
+      );
+      expect(jobs().first.request.outDir.path, '/home/me/Downloads/Ftube');
+    });
+
     test('a picked format overrides the preset', () async {
       final job = await starter().start(
         info,

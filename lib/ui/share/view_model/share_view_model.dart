@@ -9,6 +9,7 @@ import '../../../data/repositories/download_starter.dart';
 import '../../../data/services/android/share_link_service.dart';
 import '../../../data/services/android/storage_permission_service.dart';
 import '../../../domain/models/models.dart';
+import '../../home/view_model/home_view_model.dart';
 
 part 'share_view_model.freezed.dart';
 part 'share_view_model.g.dart';
@@ -108,6 +109,10 @@ abstract class ShareState with _$ShareState {
 
     /// Download was tapped and the job is being queued.
     @Default(false) bool queuing,
+
+    /// The link is a playlist, which only Home can download
+    /// (spec-v0.5 D-79).
+    @Default(false) bool isPlaylist,
   }) = _ShareState;
 
   const ShareState._();
@@ -140,7 +145,7 @@ abstract class ShareState with _$ShareState {
   /// Download works from the start with a chip (D-65); a fetch error turns
   /// it off, since yt-dlp would fail the same way.
   bool get canDownload =>
-      shown != null && !noAccess && !queuing && error == null;
+      shown != null && !noAccess && !queuing && !isPlaylist && error == null;
 }
 
 /// The share popup: reads the shared link, lets the user pick a format and
@@ -157,6 +162,9 @@ class ShareViewModel extends _$ShareViewModel {
     final url = share?.url;
     final preset = _defaultPreset();
     if (url == null) return ShareState(preset: preset);
+    if (isPlaylistLink(url)) {
+      return ShareState(url: url, preset: preset, isPlaylist: true);
+    }
     unawaited(Future.microtask(() => _load(++_seq, url)));
     return ShareState(
       url: url,
@@ -202,6 +210,14 @@ class ShareViewModel extends _$ShareViewModel {
     state = state.copyWith(preset: preset);
   }
 
+  /// Opens the app on Home with the playlist link (spec-v0.5 D-79).
+  Future<void> openInApp() async {
+    final url = state.url;
+    if (url == null) return;
+    unawaited(ref.read(homeViewModelProvider.notifier).openLink(url));
+    await ref.read(shareSessionProvider.notifier).openApp();
+  }
+
   /// Queues the video and closes the popup with [toast].
   Future<void> download({required String toast}) async {
     final info = state.shown;
@@ -230,6 +246,14 @@ class ShareViewModel extends _$ShareViewModel {
       }
       final info = await ref.read(mediaServiceProvider).fetchInfo(url);
       if (!ref.mounted || seq != _seq) return;
+      if (info is! MediaInfo) {
+        state = state.copyWith(
+          fetching: false,
+          isPlaylist: true,
+          noAccess: false,
+        );
+        return;
+      }
       final loaded = state.copyWith(
         fetching: false,
         info: info,

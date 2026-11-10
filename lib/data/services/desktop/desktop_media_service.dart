@@ -33,14 +33,19 @@ class DesktopMediaService implements MediaService {
   final _jobs = <String, _Job>{};
 
   @override
-  Future<MediaInfo> fetchInfo(String url) async {
+  Future<FetchResult> fetchInfo(String url, {bool playlist = false}) async {
     _checkUrl(url);
     final tools = await _tools();
     final ProcessOutput out;
     try {
       out = await _runner.run(
         tools.ytDlp,
-        YtDlpArgs.info(url, ffmpegDir: tools.ffmpegDir, denoPath: tools.deno),
+        YtDlpArgs.info(
+          url,
+          ffmpegDir: tools.ffmpegDir,
+          denoPath: tools.deno,
+          playlist: playlist,
+        ),
       );
     } on ProcessException {
       throw BinaryMissing(Binary.ytDlp.label);

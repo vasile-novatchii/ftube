@@ -169,6 +169,52 @@ void main() {
       expect(find.text('Queue (0)'), findsOneWidget);
     });
 
+    testWidgets('Cancel queued shows only with waiting jobs', (tester) async {
+      await pump(tester);
+      final a = add('a');
+      add('b');
+      final c = add('c');
+      await tester.pump();
+      expect(key('queue.cancelQueued'), findsOneWidget);
+      await tester.tap(key('queue.cancelQueued'));
+      await tester.pump();
+      expect(repo().job(a.id)!.status, JobStatus.running);
+      expect(repo().job(c.id)!.status, JobStatus.cancelled);
+      expect(key('queue.cancelQueued'), findsNothing);
+    });
+
+    testWidgets('Clear all asks before stopping downloads', (tester) async {
+      await pump(tester);
+      expect(key('queue.clearAll'), findsNothing);
+      add('a');
+      add('b');
+      await tester.pump();
+      await tester.tap(key('queue.clearAll'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Stop 2 downloads and clear the list?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(repo().jobs, hasLength(2));
+
+      await tester.tap(key('queue.clearAll'));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(key('queue.confirmClearAll'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(repo().jobs, isEmpty);
+      expect(key('queue.clearAll'), findsNothing);
+    });
+
+    testWidgets('Clear all of finished jobs does not ask', (tester) async {
+      await pump(tester);
+      final a = add('a');
+      env.media.finish(a.id);
+      await tester.pumpAndSettle();
+      await tester.tap(key('queue.clearAll'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(repo().jobs, isEmpty);
+    });
+
     testWidgets('pause and resume a job', (tester) async {
       await pump(tester);
       final a = add('a');

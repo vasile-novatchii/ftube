@@ -117,9 +117,10 @@ abstract final class YtDlpOutput {
 
   static num? _num(String s) => s == 'NA' ? null : num.tryParse(s);
 
-  /// Parses `yt-dlp -J` output. Storyboards and other formats with neither
-  /// audio nor video are skipped.
-  static MediaInfo parseInfo(String json, {required String url}) {
+  /// Parses `yt-dlp -J --flat-playlist` output: a video, or a playlist
+  /// with its entries (spec-v0.5 D-62). Storyboards and other formats with
+  /// neither audio nor video are skipped.
+  static FetchResult parseInfo(String json, {required String url}) {
     final Object? decoded;
     try {
       decoded = jsonDecode(json);
@@ -129,24 +130,81 @@ abstract final class YtDlpOutput {
     if (decoded is! Map<String, Object?>) {
       throw const Unsupported('yt-dlp JSON is not an object');
     }
-    if (decoded['_type'] == 'playlist') {
-      throw const Unsupported('playlists are not supported');
-    }
+    if (decoded['_type'] == 'playlist') return _playlist(decoded, url);
     final duration = decoded['duration'];
     final formats = decoded['formats'];
     return MediaInfo(
       url: url,
       title: (decoded['title'] as String?) ?? url,
       uploader: (decoded['uploader'] ?? decoded['channel']) as String?,
-      duration: duration is num
-          ? Duration(milliseconds: (duration * 1000).round())
-          : null,
+      duration: _duration(duration),
       thumbnailUrl: decoded['thumbnail'] as String?,
       formats: [
         if (formats is List<Object?>)
           for (final f in formats.whereType<Map<String, Object?>>())
             ?_format(f),
       ],
+    );
+  }
+
+  static Duration? _duration(Object? seconds) =>
+      seconds is num ? Duration(milliseconds: (seconds * 1000).round()) : null;
+
+  static PlaylistInfo _playlist(Map<String, Object?> p, String url) {
+    final raw = p['entries'];
+    final entries = [
+      if (raw is List<Object?>)
+        for (final e in raw.whereType<Map<String, Object?>>()) ?_entry(e),
+    ];
+    if (entries.isEmpty) throw const Unsupported('empty playlist');
+    final count = p['playlist_count'];
+    final total = count is num ? count.round() : null;
+    return PlaylistInfo(
+      url: url,
+      title: (p['title'] as String?) ?? url,
+      uploader: (p['uploader'] ?? p['channel']) as String?,
+      totalCount: total,
+      entries: entries,
+      // YouTube channel tabs give no count; a full first page may have more.
+      truncated: total != null
+          ? total > entries.length
+          : raw is List<Object?> && raw.length >= YtDlpArgs.playlistLimit,
+    );
+  }
+
+  static const _unavailableTitles = {'[Private video]', '[Deleted video]'};
+  static const _unavailable = {
+    'private',
+    'needs_auth',
+    'premium_only',
+    'subscriber_only',
+  };
+  static final _listIe = RegExp(r'(Tab|Playlist|Channel|Album|Set|User)$');
+
+  static PlaylistEntry? _entry(Map<String, Object?> e) {
+    final ie = e['ie_key'] as String?;
+    final id = e['id'] as String?;
+    final url =
+        (e['url'] ?? e['webpage_url']) as String? ??
+        (ie == 'Youtube' && id != null
+            ? 'https://www.youtube.com/watch?v=$id'
+            : null);
+    if (url == null) return null;
+    final title = e['title'] as String?;
+    final thumbs = e['thumbnails'];
+    final last = thumbs is List<Object?>
+        ? thumbs.whereType<Map<String, Object?>>().lastOrNull
+        : null;
+    final thumb = (e['thumbnail'] ?? last?['url']) as String?;
+    return PlaylistEntry(
+      url: url,
+      title: title ?? url,
+      duration: _duration(e['duration']),
+      thumbnailUrl: thumb,
+      isList: e['_type'] == 'playlist' || (ie != null && _listIe.hasMatch(ie)),
+      unavailable:
+          _unavailableTitles.contains(title) ||
+          _unavailable.contains(e['availability']),
     );
   }
 

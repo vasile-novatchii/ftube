@@ -72,6 +72,19 @@ class _Content extends ConsumerWidget {
         actions: [close(l10n.shareClose), openApp],
       );
     }
+    if (state.isPlaylist) {
+      return _Layout(
+        body: Text(l10n.shareIsPlaylist, key: const Key('share.message')),
+        actions: [
+          close(l10n.shareClose),
+          FilledButton(
+            key: const Key('share.openPlaylist'),
+            onPressed: () => unawaited(vm.openInApp()),
+            child: Text(l10n.shareOpenPlaylist),
+          ),
+        ],
+      );
+    }
     final error = state.error;
     return _Layout(
       body: Column(

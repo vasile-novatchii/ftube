@@ -74,6 +74,14 @@ extension AppLocalizationsLabels on AppLocalizations {
     JobStatus.paused => statusPaused,
   };
 
+  /// What a playlist row or Home says about a video already in the queue
+  /// (spec-v0.5 D-83).
+  String activeLabel(JobStatus status) => switch (status) {
+    JobStatus.running => statusDownloading,
+    JobStatus.paused => statusPaused,
+    _ => statusQueued,
+  };
+
   /// A user-facing message for [error]. Technical details stay in logs.
   String errorMessage(Object error) => switch (error) {
     InvalidUrl() => errorInvalidUrl,

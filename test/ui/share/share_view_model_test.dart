@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ftube/config/providers.dart';
-import 'package:ftube/data/repositories/download_starter.dart';
 import 'package:ftube/data/repositories/settings_repository.dart';
 import 'package:ftube/data/services/android/storage_permission_service.dart';
 import 'package:ftube/domain/exceptions/ftube_exception.dart';
 import 'package:ftube/domain/models/models.dart';
+import 'package:ftube/ui/home/view_model/home_view_model.dart';
 import 'package:ftube/ui/share/view_model/share_view_model.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -301,6 +301,55 @@ void main() {
       await c.read(shareSessionProvider.notifier).openApp();
       expect(host.calls.last.method, 'openApp');
       expect(c.read(shareSessionProvider), isNull);
+    });
+
+    test('a playlist link opens Home with it in the app', () async {
+      const list = PlaylistInfo(
+        url: 'https://youtube.com/playlist?list=PL1',
+        title: 'Mix',
+        entries: [PlaylistEntry(url: 'https://youtu.be/a', title: 'A')],
+      );
+      env.media.onFetch = (_) async => list;
+      c.listen(homeViewModelProvider, (_, _) {});
+      await host.show(list.url);
+      expect(state().isPlaylist, isTrue);
+      expect(state().canDownload, isFalse);
+      await pumpEventQueue();
+      expect(env.media.fetched, isEmpty);
+      expect(state().isPlaylist, isTrue);
+      expect(state().fetching, isFalse);
+      expect(state().canDownload, isFalse);
+      await vm().download(toast: 't');
+      expect(jobs(), isEmpty);
+
+      await vm().openInApp();
+      await pumpEventQueue();
+      expect(host.calls.last.method, 'openApp');
+      final home = c.read(homeViewModelProvider);
+      expect(home.url, list.url);
+      expect(home.linkOpened, 1);
+      expect(home.playlist, list);
+    });
+
+    test('a playlist found only by the fetch is shown too', () async {
+      const album = 'https://example.bandcamp.com/album/x';
+      env.media.onFetch = (_) async => const PlaylistInfo(
+        url: album,
+        title: 'X',
+        entries: [PlaylistEntry(url: 'https://example.com/t1', title: 'T1')],
+      );
+      await host.show(album);
+      expect(state().isPlaylist, isFalse);
+      await pumpEventQueue();
+      expect(env.media.fetched, [album]);
+      expect(state().isPlaylist, isTrue);
+      expect(state().canDownload, isFalse);
+    });
+
+    test('openInApp does nothing without a link', () async {
+      await share('no link');
+      await vm().openInApp();
+      expect(host.calls.where((c) => c.method == 'openApp'), isEmpty);
     });
 
     test('close ends the share itself when Android fails', () async {

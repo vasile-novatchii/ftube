@@ -8,6 +8,7 @@ import '../../core/l10n.dart';
 import '../../core/media_info_card.dart';
 import '../../queue/widgets/queue_view.dart';
 import '../view_model/home_view_model.dart';
+import 'playlist_panel.dart';
 
 /// Paste a link, see its info, pick a quality and download. The queue sits
 /// below.
@@ -48,9 +49,15 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
   Future<void> _download() async {
     final messenger = ScaffoldMessenger.of(context);
-    final queued = context.l10n.homeQueued;
-    final job = await _vm.download();
-    if (job != null) {
+    final l10n = context.l10n;
+    final String? queued;
+    if (ref.read(homeViewModelProvider).playlist != null) {
+      final jobs = await _vm.downloadPlaylist();
+      queued = jobs == null ? null : l10n.playlistQueued(jobs.length);
+    } else {
+      queued = await _vm.download() == null ? null : l10n.homeQueued;
+    }
+    if (queued != null) {
       messenger.showSnackBar(SnackBar(content: Text(queued)));
     }
   }
@@ -78,148 +85,216 @@ class _HomeViewState extends ConsumerState<HomeView> {
       final e => l10n.errorMessage(e),
     };
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.appTitle)),
-      body: ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (state.storageBlocked)
-            _Banner(
-              text: l10n.storageDenied,
-              actions: [
-                FilledButton(
-                  key: const Key('home.grant'),
-                  onPressed: _vm.grantStorageAccess,
-                  child: Text(l10n.storageGrant),
-                ),
-              ],
-            ),
-          if (state.clipboardUrl case final clip?)
-            _Banner(
-              text: '${l10n.homeClipboardFound}\n$clip',
-              actions: [
-                TextButton(
-                  key: const Key('home.clipboard.dismiss'),
-                  onPressed: _vm.dismissClipboard,
-                  child: Text(l10n.homeClipboardDismiss),
-                ),
-                FilledButton(
-                  key: const Key('home.clipboard.use'),
-                  onPressed: _vm.useClipboard,
-                  child: Text(l10n.homeClipboardUse),
-                ),
-              ],
-            ),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  key: const Key('home.url'),
-                  controller: _url,
-                  keyboardType: TextInputType.url,
-                  textInputAction: TextInputAction.go,
-                  decoration: InputDecoration(
-                    hintText: l10n.homeUrlHint,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    suffixIcon: state.url.isEmpty
-                        ? null
-                        : IconButton(
-                            key: const Key('home.clear'),
-                            tooltip: l10n.homeClear,
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              _url.clear();
-                              _vm.setUrl('');
-                            },
-                          ),
+    return PopScope(
+      canPop: state.back.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _vm.goBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text(l10n.appTitle)),
+        body: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (state.storageBlocked)
+              _Banner(
+                text: l10n.storageDenied,
+                actions: [
+                  FilledButton(
+                    key: const Key('home.grant'),
+                    onPressed: _vm.grantStorageAccess,
+                    child: Text(l10n.storageGrant),
                   ),
-                  onChanged: _vm.setUrl,
-                  onSubmitted: (_) => _vm.fetch(),
+                ],
+              ),
+            if (state.clipboardUrl case final clip?)
+              _Banner(
+                text: '${l10n.homeClipboardFound}\n$clip',
+                actions: [
+                  TextButton(
+                    key: const Key('home.clipboard.dismiss'),
+                    onPressed: _vm.dismissClipboard,
+                    child: Text(l10n.homeClipboardDismiss),
+                  ),
+                  FilledButton(
+                    key: const Key('home.clipboard.use'),
+                    onPressed: _vm.useClipboard,
+                    child: Text(l10n.homeClipboardUse),
+                  ),
+                ],
+              ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const Key('home.url'),
+                    controller: _url,
+                    keyboardType: TextInputType.url,
+                    textInputAction: TextInputAction.go,
+                    decoration: InputDecoration(
+                      hintText: l10n.homeUrlHint,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      suffixIcon: state.url.isEmpty
+                          ? null
+                          : IconButton(
+                              key: const Key('home.clear'),
+                              tooltip: l10n.homeClear,
+                              icon: const Icon(Icons.close),
+                              onPressed: () {
+                                _url.clear();
+                                _vm.setUrl('');
+                              },
+                            ),
+                    ),
+                    onChanged: _vm.setUrl,
+                    onSubmitted: (_) => _vm.fetch(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  key: const Key('home.paste'),
+                  tooltip: l10n.homePaste,
+                  icon: const Icon(Icons.content_paste),
+                  onPressed: _vm.paste,
+                ),
+                FilledButton(
+                  key: const Key('home.fetch'),
+                  onPressed: state.canFetch ? _vm.fetch : null,
+                  child: Text(l10n.homeFetch),
+                ),
+              ],
+            ),
+            if (state.back.lastOrNull case final step?)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  key: const Key('home.back'),
+                  onPressed: _vm.goBack,
+                  icon: const BackButtonIcon(),
+                  label: Text(
+                    step.info.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                key: const Key('home.paste'),
-                tooltip: l10n.homePaste,
-                icon: const Icon(Icons.content_paste),
-                onPressed: _vm.paste,
+            if (state.fetching)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(),
               ),
-              FilledButton(
-                key: const Key('home.fetch'),
-                onPressed: state.canFetch ? _vm.fetch : null,
-                child: Text(l10n.homeFetch),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  error,
+                  key: const Key('home.error'),
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
+            if (state.url.isEmpty && state.info == null && error == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  l10n.homeEmpty,
+                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ),
+            if (state.video case final info?) ...[
+              const SizedBox(height: 16),
+              MediaInfoCard(info: info, titleKey: const Key('home.title')),
+              if (state.activeStatus(info.url) case final status?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    l10n.homeInQueue(l10n.activeLabel(status)),
+                    key: const Key('home.inQueue'),
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              if (state.offersPlaylist)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.homePartOfPlaylist,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      key: const Key('home.showPlaylist'),
+                      onPressed: _vm.showPlaylist,
+                      child: Text(l10n.homeShowPlaylist),
+                    ),
+                  ],
+                ),
+            ],
+            if (state.playlist case final playlist?) ...[
+              const SizedBox(height: 16),
+              PlaylistPanel(
+                playlist: playlist,
+                selected: state.selected,
+                statusOf: state.activeStatus,
+                open: state.listOpen,
+                onToggleList: _vm.toggleList,
+                onToggle: _vm.toggleEntry,
+                onOpen: _vm.openEntry,
+                onSelectAll: _vm.selectAll,
+                onSelectNone: _vm.selectNone,
               ),
             ],
-          ),
-          if (state.fetching)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: LinearProgressIndicator(),
-            ),
-          if (error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                error,
-                key: const Key('home.error'),
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ),
-          if (state.url.isEmpty && state.info == null && error == null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                l10n.homeEmpty,
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ),
-          if (state.info case final info?) ...[
-            const SizedBox(height: 16),
-            MediaInfoCard(info: info, titleKey: const Key('home.title')),
-            const SizedBox(height: 12),
-            Text(l10n.homeQuality, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final preset in homePresets)
-                  ChoiceChip(
-                    key: Key('home.preset.${preset.name}'),
-                    label: Text(l10n.presetLabel(preset)),
-                    selected: state.preset == preset,
-                    onSelected: (_) => _vm.selectPreset(preset),
-                  ),
-                if (info.formats.isNotEmpty)
-                  ChoiceChip(
-                    key: const Key('home.formats'),
-                    avatar: const Icon(Icons.tune, size: 18),
-                    label: Text(
-                      state.selectedFormat == null
-                          ? l10n.homeAllFormats
-                          : l10n.formatLabel(state.selectedFormat!),
+            if (state.info case final info?) ...[
+              const SizedBox(height: 12),
+              Text(l10n.homeQuality, style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final preset in homePresets)
+                    ChoiceChip(
+                      key: Key('home.preset.${preset.name}'),
+                      label: Text(l10n.presetLabel(preset)),
+                      selected: state.preset == preset,
+                      onSelected: (_) => _vm.selectPreset(preset),
                     ),
-                    selected: state.preset == QualityPreset.custom,
-                    onSelected: (_) => _pickFormat(info, state.formatId),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: FilledButton.icon(
-                key: const Key('home.download'),
-                onPressed: state.canDownload ? _download : null,
-                icon: const Icon(Icons.download),
-                label: Text(l10n.homeDownload),
+                  if (info case MediaInfo(:final formats)
+                      when formats.isNotEmpty)
+                    ChoiceChip(
+                      key: const Key('home.formats'),
+                      avatar: const Icon(Icons.tune, size: 18),
+                      label: Text(
+                        state.selectedFormat == null
+                            ? l10n.homeAllFormats
+                            : l10n.formatLabel(state.selectedFormat!),
+                      ),
+                      selected: state.preset == QualityPreset.custom,
+                      onSelected: (_) => _pickFormat(info, state.formatId),
+                    ),
+                ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: FilledButton.icon(
+                  key: const Key('home.download'),
+                  onPressed: state.canDownload ? _download : null,
+                  icon: const Icon(Icons.download),
+                  label: Text(
+                    info is PlaylistInfo
+                        ? l10n.playlistDownload(state.selectedEntries.length)
+                        : l10n.homeDownload,
+                  ),
+                ),
+              ),
+            ],
+            const Divider(height: 32),
+            const QueueView(),
           ],
-          const Divider(height: 32),
-          const QueueView(),
-        ],
+        ),
       ),
     );
   }

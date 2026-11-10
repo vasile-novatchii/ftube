@@ -61,9 +61,30 @@ void main() {
     );
   });
 
-  test('info ends with -J -- url', () {
+  test('info reads a flat list of 200 entries and ends with -J -- url', () {
     final args = YtDlpArgs.info('https://x.test/v', ffmpegDir: '/bin');
-    expect(args.sublist(args.length - 3), ['-J', '--', 'https://x.test/v']);
+    expect(args.sublist(args.length - 6), [
+      '--flat-playlist',
+      '-I',
+      '1:200',
+      '-J',
+      '--',
+      'https://x.test/v',
+    ]);
+    expect(args, contains('--no-playlist'));
+    expect(args, isNot(contains('--yes-playlist')));
+  });
+
+  test('info with playlist adds --yes-playlist after --no-playlist', () {
+    final args = YtDlpArgs.info(
+      'https://x.test/v',
+      ffmpegDir: '/bin',
+      playlist: true,
+    );
+    expect(
+      args.indexOf('--yes-playlist'),
+      greaterThan(args.indexOf('--no-playlist')),
+    );
   });
 
   group('download', () {
@@ -144,6 +165,20 @@ void main() {
       expect(YtDlpArgs.androidInfo('https://x.test/v'), [
         '--ignore-config',
         '--no-playlist',
+        '--flat-playlist',
+        '-I',
+        '1:200',
+        '-J',
+        '--',
+        'https://x.test/v',
+      ]);
+      expect(YtDlpArgs.androidInfo('https://x.test/v', playlist: true), [
+        '--ignore-config',
+        '--no-playlist',
+        '--yes-playlist',
+        '--flat-playlist',
+        '-I',
+        '1:200',
         '-J',
         '--',
         'https://x.test/v',

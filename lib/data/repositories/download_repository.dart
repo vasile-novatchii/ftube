@@ -60,24 +60,43 @@ class DownloadRepository {
     required QualityPreset preset,
     required Directory outDir,
     String? formatId,
+  }) => enqueueAll(
+    [(url: url, title: title)],
+    preset: preset,
+    outDir: outDir,
+    formatId: formatId,
+  ).single;
+
+  /// Adds one job per item, in order, with a single [changes] event
+  /// (spec-v0.5 D-58).
+  List<DownloadJob> enqueueAll(
+    List<({String url, String title})> items, {
+    required QualityPreset preset,
+    required Directory outDir,
+    String? formatId,
   }) {
     _checkOpen();
+    if (items.isEmpty) return const [];
     final now = _now();
-    final job = DownloadJob(
-      request: DownloadRequest(
-        jobId: 'job-${now.microsecondsSinceEpoch}-${_seq++}',
-        url: url,
-        preset: preset,
-        outDir: outDir,
-        formatId: formatId,
-      ),
-      title: title,
-      createdAt: now,
-    );
-    _jobs[job.id] = job;
+    final ids = <String>[];
+    for (final item in items) {
+      final job = DownloadJob(
+        request: DownloadRequest(
+          jobId: 'job-${now.microsecondsSinceEpoch}-${_seq++}',
+          url: item.url,
+          preset: preset,
+          outDir: outDir,
+          formatId: formatId,
+        ),
+        title: item.title,
+        createdAt: now,
+      );
+      _jobs[job.id] = job;
+      ids.add(job.id);
+    }
     _emit();
     _pump();
-    return _jobs[job.id]!;
+    return [for (final id in ids) _jobs[id]!];
   }
 
   /// Cancels a queued or running job. Other jobs are left as they are.
@@ -125,6 +144,13 @@ class DownloadRepository {
     }
   }
 
+  /// Cancels every job still waiting in the queue. Running and paused jobs
+  /// are left as they are (spec-v0.5 D-61).
+  Future<void> cancelQueued() => Future.wait([
+    for (final j in _jobs.values.toList())
+      if (j.status == JobStatus.queued) cancel(j.id),
+  ]);
+
   /// Puts a failed or cancelled job back in the queue.
   void retry(String id) {
     _checkOpen();
@@ -148,6 +174,19 @@ class DownloadRepository {
     final before = _jobs.length;
     _jobs.removeWhere((_, j) => j.status == JobStatus.completed);
     if (_jobs.length != before) _emit();
+  }
+
+  /// Cancels every queued, running and paused job, then removes all jobs.
+  /// Downloaded files stay on disk (spec-v0.5 D-86).
+  Future<void> clearAll() async {
+    if (_jobs.isEmpty) return;
+    final cancels = [
+      for (final j in _jobs.values.toList())
+        if (j.status.canCancel) cancel(j.id),
+    ];
+    _jobs.clear();
+    _emit();
+    await Future.wait(cancels);
   }
 
   /// Stops every running job and closes [changes].
