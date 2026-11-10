@@ -82,6 +82,21 @@ Everywhere:
 - [ ] Downloading the same video twice keeps both files, the second as ` (2)`, and never replaces a file.
 - [ ] Windows: a Cyrillic or Arabic title is named correctly.
 
+## v0.4 checks
+
+docs/spec-v0.4.md and docs/spec-v0.4-share.md sections DoD, on top of the checks above.
+
+Android, with the release APK, on the Android 12 device and at the latest API:
+
+- [ ] A 1GB download completes with the screen off and the app in the background, and swiping Ftube from recents doesn't stop it (DoD-25, DoD-26).
+- [ ] The notification shows the count and progress; Cancel all cancels every job; the result notification counts completed and failed jobs; nothing stays ongoing after the last job (DoD-27, DoD-29).
+- [ ] With notifications denied, downloads still finish in the background (DoD-28).
+- [ ] Pause all leaves a swipeable paused notification; Resume all, from it or the app, continues from the partial file and the file plays; the queue pauses, resumes and cancels a single job (DoD-43 to DoD-45, also on desktop).
+- [ ] Sharing a link from YouTube and from Chrome lists Ftube and opens the popup at once over the sharing app, both cold and warm (DoD-31, DoD-42).
+- [ ] Download in the popup closes it with a "Download started" toast and the job finishes; opening Ftube shows the same tab and state, with no second task in recents (DoD-32, DoD-33).
+- [ ] Without All files access the popup offers Open Ftube; text without a link shows "No link found" (DoD-34).
+- [ ] The popup shows only the chips the video has, and M4A saves a `.m4a` (DoD-46). A share right after app start shows the chips without waiting for the yt-dlp update (DoD-47).
+
 ## After the tag
 
 - [ ] The `Release` workflow is green. Read the `Smoke download` step on each OS; it may only warn when YouTube blocks the runner.
