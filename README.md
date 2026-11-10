@@ -3,7 +3,7 @@
 Download and convert media on macOS, Windows, Linux and Android.
 A Flutter port of [`ftube.sh`](https://github.com/vasile-novatchii/Linux-Features/blob/master/ftube.sh).
 
-> Status: v0.4.0: Android downloads keep running in the background with a progress notification (Pause all, Resume all, Cancel all), the queue pauses and resumes single jobs, and links shared from YouTube or a browser open a download popup with quality chips. See [docs/spec.md](docs/spec.md), [docs/spec-v0.2.md](docs/spec-v0.2.md), [docs/spec-v0.3.md](docs/spec-v0.3.md), [docs/spec-v0.4.md](docs/spec-v0.4.md) and [docs/spec-v0.4-share.md](docs/spec-v0.4-share.md).
+> Status: v0.5.0: YouTube playlist and channel links show their videos on Home as a checklist, and the picked videos download as one job each; channel tabs open their playlists with a way back, and the queue gains Clear all. See [docs/spec.md](docs/spec.md), [docs/spec-v0.2.md](docs/spec-v0.2.md), [docs/spec-v0.3.md](docs/spec-v0.3.md), [docs/spec-v0.4.md](docs/spec-v0.4.md), [docs/spec-v0.4-share.md](docs/spec-v0.4-share.md) and [docs/spec-v0.5.md](docs/spec-v0.5.md).
 
 ## Install
 

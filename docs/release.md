@@ -97,6 +97,21 @@ Android, with the release APK, on the Android 12 device and at the latest API:
 - [ ] Without All files access the popup offers Open Ftube; text without a link shows "No link found" (DoD-34).
 - [ ] The popup shows only the chips the video has, and M4A saves a `.m4a` (DoD-46). A share right after app start shows the chips without waiting for the yt-dlp update (DoD-47).
 
+## v0.5 checks
+
+docs/spec-v0.5.md section DoD, on top of the checks above.
+
+On desktop and on Android with the release APK:
+
+- [ ] A YouTube playlist link shows its videos quickly, and downloading 10 of them as MP3 gives 10 files named by title (DoD-36).
+- [ ] A `watch?v=…&list=…` link opens the video, and "Show playlist" opens the list (DoD-37).
+- [ ] A channel link shows its tabs; Videos lists the newest 200 with "Showing the first 200"; going back (row or Android back) shows the tabs again (DoD-38, DoD-52).
+- [ ] Private and deleted entries are greyed out and never queued; "Cancel all queued" cancels only queued jobs (DoD-39).
+- [ ] Single-video links behave as in v0.4 (DoD-40).
+- [ ] Sharing a playlist link shows the playlist message, and "Open in Ftube" shows its videos (DoD-48, DoD-49).
+- [ ] Tapping a playlist's Download twice queues each video once; active rows show their status (DoD-50).
+- [ ] Show/Hide videos toggles the list (DoD-51); "Clear all" empties the queue after confirmation and keeps finished files (DoD-53).
+
 ## After the tag
 
 - [ ] The `Release` workflow is green. Read the `Smoke download` step on each OS; it may only warn when YouTube blocks the runner.
