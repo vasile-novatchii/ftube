@@ -6,6 +6,7 @@ import '../../../domain/models/app_settings.dart';
 import '../../../domain/models/quality_preset.dart';
 import '../../changelog/widgets/changelog_view.dart';
 import '../../core/l10n.dart';
+import '../../formats/widgets/supported_formats_view.dart';
 import '../../update/widgets/update_widgets.dart';
 import '../view_model/settings_view_model.dart';
 
@@ -154,6 +155,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               selected: {settings.concurrentDownloads},
               onSelectionChanged: (s) => vm.setConcurrentDownloads(s.first),
             ),
+          ),
+          ListTile(
+            key: const Key('settings.formats'),
+            title: Text(l10n.formatsTitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => SupportedFormatsView.open(context),
           ),
           if (state.storageAccess case final access?) ...[
             _Header(l10n.settingsStorageAccess),

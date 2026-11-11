@@ -5,6 +5,7 @@
 ### Added
 - Ftube tells you when a new version is out: a banner on Home, a check in Settings and, on Android, a notification. "What's new" shows the release notes before you download.
 - Tap Settings > App version to read this changelog.
+- Settings > Supported formats lists the video and audio formats, the qualities and the sites Ftube can download from.
 
 ## 0.5.0 - 2026-11-10
 
