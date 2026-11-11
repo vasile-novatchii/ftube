@@ -8,6 +8,9 @@ Builds on release v0.5: [spec-v0.5.md](spec-v0.5.md). Decision, DoD and risk IDs
 - **How:** an `AppUpdateService` reads `GET /repos/vasile-novatchii/ftube/releases/latest` with the existing `HttpClient`. An `AppUpdateRepository` compares the tag with `PackageInfo.version`, limits checks to one a day and remembers a skipped version. Home shows the existing `_Banner` with What's new (release notes) / Download / Later / Skip, and Settings gets "Check for updates". Android also posts one system notification per new version.
 - **Release side:** the `Release` workflow fails instead of signing the APK with a throwaway debug key, so an APK from the release page always installs over the old one.
 - **Main risks:** the unauthenticated GitHub API limit of 60 requests per hour per IP (R-36), and opening a URL from the desktop without a new package (R-37).
+- **Part B - changelog:** a hand-written `CHANGELOG.md` at the repo root is bundled as an asset. Tapping Settings > App version opens it, rendered as Markdown with `flutter_markdown_plus`. The `Release` workflow takes that version's section as the GitHub release notes, so Part A's "What's new" shows the same text.
+- **Part C - supported formats:** Settings gets "Supported formats", a screen built from the app's own enums: video containers, audio formats, quality presets, and a link to yt-dlp's list of supported sites.
+- **Part D - privacy note:** the README gets a short "Privacy" section. There is no Terms page (GPLv3 sections 15-16 already disclaim warranty and liability) and no in-app privacy page.
 
 ## A1. What changes
 
@@ -149,14 +152,13 @@ flowchart TD
 - D-94: `FileSystemService.openUrl(Uri)` opens the page: `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows (no `cmd /c start`, so the URL is never parsed by a shell), `xdg-open` on Linux, and a new `openUrl` method on the `io.github.infvyr.ftube/files` channel (`ACTION_VIEW`) on Android. No new package (`url_launcher`) is added.
 - D-95: the `Release` workflow fails when `FTUBE_KEYSTORE_BASE64` is missing, instead of signing with a throwaway debug key. An APK signed with another key can't install over the old one, so a debug-signed release would break updating for every Android user.
 - D-96: the README gets an "Updating" section per OS: Android installs over the old app and keeps its data; macOS replaces `Ftube.app` and repeats the `xattr` step; Windows and Linux replace the unpacked folder.
-- D-97: release notes - the banner and the Settings result get "What's new", which opens a scrollable sheet with the version, date, notes and Download. The release `body` is Markdown; it is shown as selectable plain text with headings markers, `**`, backticks and `[text](url)` link syntax reduced to their text, so no Markdown package is added. An empty body shows "No release notes".
+- D-97: release notes - the banner and the Settings result get "What's new", which opens a scrollable sheet with the version, date, notes and Download. The release `body` is Markdown and is rendered with the `MarkdownView` from Part B (D-99), so it reuses that package instead of a plain-text reducer. An empty body shows "No release notes".
 
 ## A5. Testing
 
 | Level | Covers | Tools |
 |---|---|---|
 | Unit | `AppUpdateService`: parses `tag_name` / `html_url` / `published_at`; 403, 404, 429, timeout and bad JSON become `CheckFailed` | fake `HttpClient`, JSON fixture from a real release |
-| Unit | notes to plain text (D-97): headings, bold, code, links, `--generate-notes` output, empty body | `test` |
 | Unit | version compare (D-90): `0.10.0 > 0.9.9`, equal, `v` prefix, build suffix, unparseable tag | `test` |
 | Unit | `AppUpdateRepository`: 24h limit, force bypass, `lastCheck` only on success, skipped version, notify once per version | fake service, in-memory `PrefsService` |
 | Widget | Home banner: Download / Later / Skip, hidden when skipped; Settings tile states | `flutter_test`, `ProviderContainer` overrides |
@@ -168,7 +170,7 @@ flowchart TD
 - DoD-55: Later hides the banner until the next launch; Skip hides it until a newer version is published.
 - DoD-56: A second launch within 24h sends no request; Settings' "Check for updates" always sends one and shows its result, including "Couldn't check for updates" offline.
 - DoD-57: On Android, a new version posts one notification; tapping it opens the release page. A second launch, or a manual Settings check, posts no second notification.
-- DoD-61: "What's new" in the banner and in Settings shows the release notes of version X as readable text, without raw Markdown markers.
+- DoD-61: "What's new" in the banner and in Settings shows the release notes of version X as rendered Markdown, without raw Markdown markers.
 - DoD-58: Offline or rate-limited starts show nothing and log the error.
 - DoD-59: The `Release` workflow fails without the keystore secret, and the README has the "Updating" steps.
 - DoD-60: DoD-3 still holds: analyze and format are clean, all tests pass and the coverage gate is met. New strings exist in every ARB file (en, ar, de, es, ro, ru).
@@ -189,3 +191,105 @@ flowchart TD
 - Downloading or installing the update inside Ftube (Android `PackageInstaller`, desktop self-replace), and silent updates.
 - Checking for updates while Ftube is closed (WorkManager, launch agents).
 - Prerelease or beta channels.
+
+## B1. Changelog - what changes
+
+**Where the changelog text goes**
+
+```mermaid
+flowchart LR
+  md["CHANGELOG.md (new)<br/>repo root, hand-written"]
+  asset["Flutter asset"]
+  wf["Release workflow<br/>extract ## X.Y.Z section"]
+  gh[["GitHub release body"]]
+  tile["Settings > App version<br/>tap (changed)"]
+  page["ChangelogView (new)"]
+  mv["MarkdownView (new)<br/>flutter_markdown_plus"]
+  sheet["Part A What's new sheet"]
+  md --> asset --> page --> mv
+  tile --> page
+  md --> wf --> gh --> sheet --> mv
+  classDef new fill:#d4f7d4,stroke:#2e7d32
+  classDef changed fill:#fff3c4,stroke:#b38600
+  classDef ext fill:#e3e8ef,stroke:#5b6b82
+  class md,page,mv new
+  class tile,wf,sheet changed
+  class gh ext
+```
+
+**CHANGELOG.md format**
+
+```markdown
+# Changelog
+
+## 0.6.0 - 2026-11-20
+
+### Added
+- Ftube tells you when a new version is out.
+
+### Fixed
+- ...
+```
+
+- One `## X.Y.Z - YYYY-MM-DD` heading per release, newest first, with `Added` / `Changed` / `Fixed` subsections as needed. Entries are written for users, not copied from commit messages.
+- Backfilled for 0.1.0 to 0.5.0 from the tags and `docs/spec*.md`.
+
+## B2. Decisions
+
+- D-98: the changelog is a bundled asset, not fetched from GitHub - it works offline, costs no API requests (R-36), and always matches the installed build. `pubspec.yaml` lists `CHANGELOG.md` under `flutter.assets`.
+- D-99: `flutter_markdown_plus` renders Markdown. It is the official replacement for the discontinued `flutter_markdown`. A shared `MarkdownView(data)` widget wraps it: `MarkdownStyleSheet.fromTheme`, selectable text, and links opened with `FileSystemService.openUrl` (D-94). Images are not loaded. The Part A release notes sheet (D-97) uses the same widget.
+- D-100: Settings > App version gets a chevron and opens `ChangelogView` (title "Changelog", the whole file, scrollable). The tile keeps showing the version as its subtitle. The changelog text is English only; the page title and tile strings are localized.
+- D-101: the `Release` workflow takes the `## X.Y.Z` section for the tag's version from `CHANGELOG.md` and puts it first in `notes.md`, ahead of the existing install text. It fails when that section is missing or empty, so a release can't ship without a changelog entry. `--generate-notes` stays for the compare link.
+- D-102: a unit test reads the `pubspec.yaml` version and checks that `CHANGELOG.md` has a non-empty section for it, so the release commit's version bump fails CI until the entry is written.
+
+## B3. Testing
+
+| Level | Covers | Tools |
+|---|---|---|
+| Unit | `CHANGELOG.md` has a section for the pubspec version (D-102); the section extraction the workflow uses returns the right lines and nothing for a missing version | `test`, `yaml` |
+| Widget | App version tile opens `ChangelogView`; `MarkdownView` renders headings and lists, and a link tap calls `openUrl` | `flutter_test`, fake `FileSystemService` |
+| Manual | a tag without a changelog section fails `Release`; the release page and "What's new" show the section | GitHub Actions |
+
+## B4. Definition of Done
+
+- DoD-62: Tapping Settings > App version opens the changelog, newest version first, rendered as Markdown, offline too. Links in it open in the browser.
+- DoD-63: `CHANGELOG.md` covers 0.1.0 to the current version, and CI fails when the pubspec version has no entry.
+- DoD-64: The GitHub release for v0.6.0 starts with its changelog section, and the `Release` workflow fails on a tag without one.
+
+## B5. Risks
+
+- R-40: `flutter_markdown_plus` is a third-party package with Flutter-team origins; if it stalls, `MarkdownView` is the one place to swap it (for example for `markdown_widget`). Its license goes into `THIRD_PARTY_NOTICES.md` if needed and shows in the Flutter license page automatically.
+
+## C1. Supported formats - what changes
+
+- Settings > Downloads gets a "Supported formats" tile that opens `SupportedFormatsView`. The screen is built from the code, not a text file, so it can't drift from what the app actually does:
+
+| Section | Content | Source |
+|---|---|---|
+| Video | MP4, WebM or MKV; the container is picked from the streams (MP4 video + M4A audio gives MP4, WebM + WebM gives WebM, anything else MKV) | `AndroidMediaService.muxExtension` / yt-dlp merger (D-35) |
+| Audio | MP3 (converted), M4A (original stream, no conversion), OGG (converted) | `QualityPreset`, `AudioTarget` |
+| Quality | Best, 1080p, 720p, 480p, 360p; "All formats" lists every stream the video offers | `QualityPreset` |
+| Sites | YouTube (videos, playlists, channels); other sites via yt-dlp, with a link to its supported sites list | constant URL |
+
+## C2. Decisions
+
+- D-103: the lists come from `QualityPreset` and `AudioTarget`, and the labels from the same l10n strings Home uses, so a new preset shows up without editing this screen.
+- D-104: the sites link opens `https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md` with `openUrl` (D-94). Ftube is tested on YouTube only, so the screen says other sites "may work" rather than promising them.
+- D-105: the screen is static - no network, no yt-dlp call.
+
+## C3. Testing and Definition of Done
+
+- Widget test: every `QualityPreset` except `custom` and every `AudioTarget` appears on the screen; the sites link calls `openUrl`.
+- DoD-65: Settings > Supported formats lists the video containers, audio formats and quality presets above, in every UI language, and the sites link opens yt-dlp's list.
+
+## D1. Privacy note
+
+- D-106: the README gets a "Privacy" section: Ftube has no accounts, analytics or tracking; it contacts only GitHub (binaries on desktop, update checks from Part A) and the sites the user downloads from; settings and history stay on the device. No in-app page and no Terms page - the GPLv3 text (sections 15-16) covers warranty and liability, and Settings already shows the license.
+- DoD-66: the README has the Privacy section, and it matches the network calls in the code (`grep https://` in `lib/`).
+
+## Non-goals (Parts B-D)
+
+- Fetching the changelog or release history from GitHub at runtime.
+- Translating the changelog.
+- A Terms of Service page or an in-app privacy page.
+- Per-site format lists or testing sites other than YouTube.
