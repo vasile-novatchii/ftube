@@ -15,11 +15,12 @@ Run through this before pushing a `vX.Y.Z` tag (docs/spec.md section 6, DoD-8).
   gh secret set FTUBE_KEY_PASSWORD
   ```
 
-  Keep the `.jks` file and passwords outside the repo. Without these secrets the workflow signs the APK with a throwaway debug key and warns.
+  Keep the `.jks` file and passwords outside the repo. Without these secrets the `Release` workflow fails rather than sign the APK with a debug key (docs/spec-v0.6.md D-95).
 
 ## Before the tag
 
 - [ ] `version:` in `pubspec.yaml` is `X.Y.Z+N`, with `N` higher than the last release (Android `versionCode`).
+- [ ] `CHANGELOG.md` renames `## Unreleased` to `## X.Y.Z - YYYY-MM-DD`, written for users. CI fails without it, and the `Release` workflow puts it at the top of the release notes (docs/spec-v0.6.md D-101, D-102).
 - [ ] CI is green on `main`: analyze, format, tests, coverage gate.
 - [ ] `assets/binaries/catalog.json` points at a published `binaries-rN` pre-release, and the `Binaries` workflow is green.
 

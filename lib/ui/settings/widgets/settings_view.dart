@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/services/android/storage_permission_service.dart';
 import '../../../domain/models/app_settings.dart';
 import '../../../domain/models/quality_preset.dart';
+import '../../changelog/widgets/changelog_view.dart';
 import '../../core/l10n.dart';
 import '../../update/widgets/update_widgets.dart';
 import '../view_model/settings_view_model.dart';
@@ -210,8 +211,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           ),
           _Header(l10n.settingsAbout),
           ListTile(
+            key: const Key('settings.version'),
             title: Text(l10n.settingsAppVersion),
             subtitle: Text(state.appVersion ?? '...'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ChangelogView.open(context),
           ),
           const UpdateCheckTile(),
           ListTile(

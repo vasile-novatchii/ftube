@@ -56,6 +56,7 @@
   "settingsClearDataDone": "تم مسح بيانات التطبيق.",
   "settingsAbout": "حول",
   "settingsAppVersion": "إصدار التطبيق",
+  "changelogTitle": "سجل التغييرات",
   "settingsLicense": "الترخيص",
   "licenseGpl": "GNU General Public License v3.0",
   "settingsThirdParty": "تراخيص الجهات الخارجية",

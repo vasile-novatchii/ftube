@@ -70,6 +70,7 @@
   "settingsClearDataDone": "App data cleared.",
   "settingsAbout": "About",
   "settingsAppVersion": "App version",
+  "changelogTitle": "Changelog",
   "settingsLicense": "License",
   "licenseGpl": "GNU General Public License v3.0",
   "settingsThirdParty": "Third-party licenses",

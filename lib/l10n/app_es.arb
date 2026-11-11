@@ -56,6 +56,7 @@
   "settingsClearDataDone": "Datos de la app borrados.",
   "settingsAbout": "Acerca de",
   "settingsAppVersion": "Versión de la app",
+  "changelogTitle": "Registro de cambios",
   "settingsLicense": "Licencia",
   "licenseGpl": "GNU General Public License v3.0",
   "settingsThirdParty": "Licencias de terceros",

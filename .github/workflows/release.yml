@@ -16,9 +16,28 @@ jobs:
     name: Check
     uses: ./.github/workflows/ci.yml
 
+  # A release can't ship without its CHANGELOG.md section (docs/spec-v0.6.md
+  # D-101); this fails before the builds start.
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Extract the release section
+        run: dart tool/changelog_section.dart "${GITHUB_REF_NAME#v}" > changelog.md
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: changelog
+          path: changelog.md
+          if-no-files-found: error
+
   build:
     name: Build (${{ matrix.target }})
-    needs: check
+    needs: [check, changelog]
     strategy:
       fail-fast: false
       matrix:
@@ -186,11 +205,17 @@ jobs:
           pattern: release-*
           merge-multiple: true
 
+      - uses: actions/download-artifact@v5
+        with:
+          name: changelog
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > notes.md <<NOTES
+          # The changelog section first; the app's "What's new" shows this body.
+          { cat changelog.md; echo; echo '---'; echo; } > notes.md
+          cat >> notes.md <<NOTES
           Install steps per OS are in the [README](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/README.md#install).
           The macOS and Windows builds are not signed, so the first launch shows a warning; the README explains how to open them.
 
