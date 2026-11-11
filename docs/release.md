@@ -113,8 +113,21 @@ On desktop and on Android with the release APK:
 - [ ] Tapping a playlist's Download twice queues each video once; active rows show their status (DoD-50).
 - [ ] Show/Hide videos toggles the list (DoD-51); "Clear all" empties the queue after confirmation and keeps finished files (DoD-53).
 
+## v0.6 checks
+
+docs/spec-v0.6.md DoD, on top of the checks above. Use the previous release (v0.5.0) for the update checks, on desktop and on Android with the release APK.
+
+- [ ] v0.5.0 shows "Ftube 0.6.0 is available" on Home within a few seconds; Download opens the v0.6.0 release page in the browser on macOS, Windows, Linux and Android (DoD-54).
+- [ ] Later hides the banner until the next launch; Skip hides it until a newer version (DoD-55).
+- [ ] A second launch within 24h sends no request; Settings > Check for updates always does, and shows "Couldn't check for updates" offline (DoD-56, DoD-58).
+- [ ] Android posts one notification for 0.6.0 that opens the release page; a relaunch or a Settings check posts no second one (DoD-57).
+- [ ] "What's new" shows the 0.6.0 notes as rendered Markdown (DoD-61).
+- [ ] The Android APK of v0.6.0 installs over v0.5.0 and keeps settings and downloads (README "Updating").
+- [ ] Settings > App version opens the changelog, newest first, offline too (DoD-62).
+- [ ] Settings > Supported formats lists the containers, qualities and audio formats, and its sites link opens yt-dlp's list (DoD-65).
+
 ## After the tag
 
-- [ ] The `Release` workflow is green. Read the `Smoke download` step on each OS; it may only warn when YouTube blocks the runner.
+- [ ] The `Release` workflow is green, and the release notes start with the CHANGELOG section (DoD-64). Read the `Smoke download` step on each OS; it may only warn when YouTube blocks the runner.
 - [ ] The release has the macOS `.zip`, Windows `.zip`, Linux `.tar.gz` and three Android APKs (`-arm64-v8a`, `-armeabi-v7a`, `-x86_64`, about 39-47MB each since v0.3), and the job summaries show their sizes. The run also has an `android-symbols-*` artifact; download it before it expires (90 days) and keep it to read obfuscated crash traces with `flutter symbolize`. Note the desktop size cost of the unused FFmpegKit libraries (R-5).
 - [ ] Each archive contains `LICENSE` and `THIRD_PARTY_NOTICES.md`.

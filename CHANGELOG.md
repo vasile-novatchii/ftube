@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-11-11
 
 ### Added
 - Ftube tells you when a new version is out: a banner on Home, a check in Settings and, on Android, a notification. "What's new" shows the release notes before you download.
