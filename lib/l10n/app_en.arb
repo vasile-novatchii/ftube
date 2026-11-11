@@ -429,5 +429,25 @@
       }
     }
   },
-  "queueClearAllBody": "Files already downloaded stay on disk."
+  "queueClearAllBody": "Files already downloaded stay on disk.",
+  "updateAvailable": "Ftube {version} is available",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateNotificationText": "Tap to open the download page.",
+  "updateChannel": "App updates",
+  "updateWhatsNew": "What's new",
+  "updateDownload": "Download",
+  "updateLater": "Later",
+  "updateSkip": "Skip this version",
+  "updateNoNotes": "No release notes.",
+  "updateCheck": "Check for updates",
+  "updateChecking": "Checking...",
+  "updateUpToDate": "Up to date",
+  "updateCheckFailed": "Couldn't check for updates",
+  "updateOpenFailed": "Couldn't open the browser."
 }

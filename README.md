@@ -48,7 +48,14 @@ The app needs GTK 3 (`libgtk-3-0`), which most desktops already have.
 1. Open the APK on the phone and allow installing from this source when asked.
 2. On first launch, grant **All files access**. Ftube needs it to save to and manage `Download/Ftube`, including files from a previous install.
 
-Updates install over the previous version as long as both APKs come from this repo's releases.
+## Updating
+
+Ftube checks for a new version once a day and shows it on Home (and as a notification on Android). **Download** opens the release page; install the new file the same way as above. Settings > **Check for updates** checks right away.
+
+- **Android:** open the new APK; it installs over the old app and keeps your settings and downloads. This only works when both APKs come from this repo's releases.
+- **macOS:** quit Ftube, replace `Ftube.app` in `Applications` with the new one, and run the `xattr` command above again.
+- **Windows:** quit Ftube and replace the unzipped folder with the new one. Settings and the downloaded tools are kept, since they live in the app data folder.
+- **Linux:** quit Ftube, delete the old `~/.local/opt/Ftube-*-linux` folder and unpack the new archive as above.
 
 ## Development
 

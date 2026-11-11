@@ -264,6 +264,46 @@ void main() {
     });
   });
 
+  group('openUrl (spec-v0.6 D-94)', () {
+    final url = Uri.parse('https://github.com/o/r/releases/tag/v1.0.0');
+    const link = 'https://github.com/o/r/releases/tag/v1.0.0';
+
+    test('runs the system opener without a shell', () async {
+      await service(DesktopOs.macos).openUrl(url);
+      await service(DesktopOs.windows).openUrl(url);
+      await service().openUrl(url);
+      verify(() => runner.run('open', [link])).called(1);
+      verify(
+        () => runner.run('rundll32', ['url.dll,FileProtocolHandler', link]),
+      ).called(1);
+      verify(() => runner.run('xdg-open', [link])).called(1);
+    });
+
+    test('Windows ignores the exit code, others report it', () async {
+      when(() => runner.run(any(), any()))
+          .thenAnswer((_) async => const ProcessOutput(1, '', ''));
+      await service(DesktopOs.windows).openUrl(url);
+      await expectLater(service().openUrl(url), throwsA(isA<FileError>()));
+    });
+
+    test('Android opens through the launcher', () async {
+      final launcher = MockLauncher();
+      when(() => launcher.openUrl(any())).thenAnswer((_) async {});
+      await FileSystemService(runner: runner, android: launcher).openUrl(url);
+      verify(() => launcher.openUrl(link)).called(1);
+    });
+
+    test('only https links are opened', () async {
+      for (final bad in ['http://x.com', 'file:///etc/passwd', 'x:y']) {
+        await expectLater(
+          service().openUrl(Uri.parse(bad)),
+          throwsA(isA<Unsupported>()),
+        );
+      }
+      verifyNever(() => runner.run(any(), any()));
+    });
+  });
+
   group('emptyDir', () {
     test('deletes the contents and keeps the folder', () async {
       final dir = Directory.systemTemp.createTempSync('ftube_empty_');

@@ -5,8 +5,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -51,6 +53,7 @@ class DownloadsChannel(private val context: Context, messenger: BinaryMessenger)
                     paused(call)
                     result.success(null)
                 }
+                "updateAvailable" -> result.success(updateAvailable(call))
                 else -> result.notImplemented()
             }
         }
@@ -170,6 +173,37 @@ class DownloadsChannel(private val context: Context, messenger: BinaryMessenger)
         manager.notify(PAUSED_ID, n)
     }
 
+    /**
+     * Posts the "new version" notification; tapping it opens the release
+     * page (docs/spec-v0.6.md D-93). Returns false when notifications are
+     * off, so Dart can try again on a later launch.
+     */
+    private fun updateAvailable(call: MethodCall): Boolean {
+        val url = call.argument<String>("url")?.let(Uri::parse)
+        if (url == null || url.scheme != "https") return false
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        manager.createNotificationChannel(
+            NotificationChannel(
+                UPDATE_CHANNEL,
+                call.argument<String>("channel") ?: "App updates",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ),
+        )
+        val open = Intent(Intent.ACTION_VIEW, url)
+            .addCategory(Intent.CATEGORY_BROWSABLE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val text = call.argument<String>("text")
+        val n = NotificationCompat.Builder(context, UPDATE_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle(call.argument<String>("title") ?: "")
+            .setContentText(text)
+            .setAutoCancel(true)
+            .setContentIntent(PendingIntent.getActivity(context, 4, open, PendingIntent.FLAG_IMMUTABLE))
+            .build()
+        manager.notify(UPDATE_ID, n)
+        return true
+    }
+
     private fun createChannels(strings: Map<String, String>) {
         manager.createNotificationChannel(
             NotificationChannel(
@@ -245,6 +279,8 @@ class DownloadsChannel(private val context: Context, messenger: BinaryMessenger)
         const val PROGRESS_ID = 1
         const val RESULT_ID = 2
         const val PAUSED_ID = 3
+        const val UPDATE_ID = 4
+        private const val UPDATE_CHANNEL = "app_update"
         private const val PROGRESS_CHANNEL = "downloads_progress"
         private const val RESULT_CHANNEL = "downloads_result"
         private const val NAME = "io.github.infvyr.ftube/downloads"

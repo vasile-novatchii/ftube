@@ -56,6 +56,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "open", "share" -> launch(call, result)
+                    "openUrl" -> openUrl(call, result)
                     else -> result.notImplemented()
                 }
             }
@@ -135,6 +136,21 @@ class MainActivity : FlutterActivity() {
 
     private companion object {
         const val TRASH_REQUEST = 7301
+    }
+
+    /** Opens an https link in the browser (docs/spec-v0.6.md D-94). */
+    private fun openUrl(call: MethodCall, result: MethodChannel.Result) {
+        val uri = call.argument<String>("url")?.let(Uri::parse)
+        if (uri == null || uri.scheme != "https") {
+            result.error("bad_args", "an https url is required", null)
+            return
+        }
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
+            result.success(null)
+        } catch (e: ActivityNotFoundException) {
+            result.error("no_app", e.message, null)
+        }
     }
 
     /** Opens or shares a file through a content URI from [FileProvider]. */

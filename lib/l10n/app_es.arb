@@ -193,5 +193,18 @@
   "playlistHideVideos": "Ocultar vídeos",
   "queueClearAll": "Borrar todo",
   "queueClearAllConfirm": "{count, plural, =1{¿Detener 1 descarga y vaciar la lista?} other{¿Detener {count} descargas y vaciar la lista?}}",
-  "queueClearAllBody": "Los archivos ya descargados se quedan en el disco."
+  "queueClearAllBody": "Los archivos ya descargados se quedan en el disco.",
+  "updateAvailable": "Ftube {version} está disponible",
+  "updateNotificationText": "Toca para abrir la página de descarga.",
+  "updateChannel": "Actualizaciones de la app",
+  "updateWhatsNew": "Novedades",
+  "updateDownload": "Descargar",
+  "updateLater": "Más tarde",
+  "updateSkip": "Omitir esta versión",
+  "updateNoNotes": "Sin notas de la versión.",
+  "updateCheck": "Buscar actualizaciones",
+  "updateChecking": "Comprobando...",
+  "updateUpToDate": "Actualizado",
+  "updateCheckFailed": "No se pudo buscar actualizaciones",
+  "updateOpenFailed": "No se pudo abrir el navegador."
 }

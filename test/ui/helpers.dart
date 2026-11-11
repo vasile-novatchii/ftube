@@ -6,15 +6,18 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:ftube/config/providers.dart';
+import 'package:ftube/data/services/android/android_update_notifier.dart';
 import 'package:ftube/data/services/android/ffmpeg_kit_runner.dart';
 import 'package:ftube/data/services/android/share_link_service.dart';
 import 'package:ftube/data/services/android/storage_permission_service.dart';
 import 'package:ftube/data/services/android/yt_dlp_bridge.dart';
+import 'package:ftube/data/services/app_update_service.dart';
 import 'package:ftube/data/services/binaries/binary_catalog.dart';
 import 'package:ftube/data/services/binaries/binary_installer.dart';
 import 'package:ftube/data/services/binary_service.dart';
 import 'package:ftube/data/services/file_system_service.dart';
 import 'package:ftube/data/services/prefs_service.dart';
+import 'package:ftube/domain/exceptions/ftube_exception.dart';
 import 'package:ftube/domain/models/models.dart';
 import 'package:ftube/ui/core/l10n.dart';
 import 'package:ftube/ui/core/theme.dart';
@@ -35,6 +38,8 @@ class MockFileSystemService extends Mock implements FileSystemService {}
 
 class MockYtDlpBridge extends Mock implements YtDlpBridge {}
 
+class MockAppUpdateService extends Mock implements AppUpdateService {}
+
 /// Prefs backed by an in-memory map.
 Future<PrefsService> testPrefs([Map<String, Object> values = const {}]) {
   SharedPreferences.setMockInitialValues(values);
@@ -54,6 +59,7 @@ CatalogEntry entry(Binary binary, int size) => CatalogEntry(
 class TestEnv {
   TestEnv.desktop() : platform = AppPlatform.desktop {
     _registerFallbacks();
+    _offline();
     when(() => files.emptyDir(any())).thenAnswer((_) async {});
     when(() => files.canOpen).thenReturn(true);
     when(() => files.canReveal).thenReturn(true);
@@ -66,6 +72,7 @@ class TestEnv {
 
   TestEnv.android() : platform = AppPlatform.android {
     _registerFallbacks();
+    _offline();
     when(() => files.emptyDir(any())).thenAnswer((_) async {});
     when(() => files.canOpen).thenReturn(true);
     when(() => files.canReveal).thenReturn(false);
@@ -80,8 +87,14 @@ class TestEnv {
     when(() => storage.openSettings()).thenAnswer((_) async => true);
   }
 
+  void _offline() {
+    when(updates.latestRelease).thenThrow(const Network('offline'));
+    when(() => files.openUrl(any())).thenAnswer((_) async {});
+  }
+
   static void _registerFallbacks() {
     registerFallbackValue(Directory('/'));
+    registerFallbackValue(Uri());
     registerFallbackValue(<LibraryItem>[]);
   }
 
@@ -93,6 +106,12 @@ class TestEnv {
   final ytDlp = MockYtDlpBridge();
   final media = FakeMediaService();
   final files = MockFileSystemService();
+
+  /// GitHub releases; offline by default, so no test reaches the network.
+  final updates = MockAppUpdateService();
+
+  /// The Android update notification; none by default.
+  AndroidUpdateNotifier? notice;
 
   /// What the clipboard holds; a [StateError] is thrown when it is
   /// [clipboardError].
@@ -134,6 +153,8 @@ class TestEnv {
       if (failLookups) throw StateError('no package info');
       return '0.1.0';
     }),
+    appUpdateServiceProvider.overrideWithValue(updates),
+    androidUpdateNoticeProvider.overrideWithValue(notice),
     mediaServiceProvider.overrideWithValue(media),
     fileSystemServiceProvider.overrideWithValue(files),
     clipboardReaderProvider.overrideWithValue(() async {

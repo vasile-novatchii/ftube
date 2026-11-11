@@ -106,12 +106,14 @@ jobs:
           FTUBE_KEY_ALIAS: ${{ secrets.FTUBE_KEY_ALIAS }}
           FTUBE_KEY_PASSWORD: ${{ secrets.FTUBE_KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            export FTUBE_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
-          else
-            echo "::warning::No release keystore secret; the APK is signed with a throwaway debug key"
+          # An APK signed with another key can't install over the old one,
+          # so never release a debug-signed APK (docs/spec-v0.6.md D-95).
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::FTUBE_KEYSTORE_BASE64 is not set; refusing to sign the release APK with a debug key"
+            exit 1
           fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export FTUBE_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           flutter build apk --release --split-per-abi \
             --obfuscate --split-debug-info=build/symbols
           mkdir -p dist

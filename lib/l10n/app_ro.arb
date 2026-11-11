@@ -193,5 +193,18 @@
   "playlistHideVideos": "Ascunde videoclipurile",
   "queueClearAll": "Șterge tot",
   "queueClearAllConfirm": "{count, plural, =1{Oprești o descărcare și golești lista?} other{Oprești {count} descărcări și golești lista?}}",
-  "queueClearAllBody": "Fișierele deja descărcate rămân pe disc."
+  "queueClearAllBody": "Fișierele deja descărcate rămân pe disc.",
+  "updateAvailable": "Ftube {version} este disponibil",
+  "updateNotificationText": "Atinge pentru a deschide pagina de descărcare.",
+  "updateChannel": "Actualizări aplicație",
+  "updateWhatsNew": "Noutăți",
+  "updateDownload": "Descarcă",
+  "updateLater": "Mai târziu",
+  "updateSkip": "Omite această versiune",
+  "updateNoNotes": "Nicio notă de lansare.",
+  "updateCheck": "Caută actualizări",
+  "updateChecking": "Se verifică...",
+  "updateUpToDate": "Actualizat",
+  "updateCheckFailed": "Nu s-au putut căuta actualizări",
+  "updateOpenFailed": "Browserul nu a putut fi deschis."
 }

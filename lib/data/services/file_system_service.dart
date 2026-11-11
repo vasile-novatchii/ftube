@@ -150,6 +150,22 @@ class FileSystemService {
     null => _androidLauncher('open').open(path),
   };
 
+  /// Opens an https [url] in the default browser (docs/spec-v0.6.md D-94).
+  /// No shell parses the URL on any platform.
+  Future<void> openUrl(Uri url) async {
+    if (!url.isScheme('https')) throw Unsupported('openUrl: $url');
+    final link = url.toString();
+    return switch (os) {
+      DesktopOs.macos => _launch('open', [link]),
+      DesktopOs.windows => _launch('rundll32', [
+        'url.dll,FileProtocolHandler',
+        link,
+      ], checkExit: false),
+      DesktopOs.linux => _launch('xdg-open', [link]),
+      null => _androidLauncher('openUrl').openUrl(link),
+    };
+  }
+
   /// Shows the system share sheet for [path] (Android only).
   Future<void> share(String path) async => switch (os) {
     null => _androidLauncher('share').share(path),

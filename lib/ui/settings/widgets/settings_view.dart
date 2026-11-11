@@ -5,6 +5,7 @@ import '../../../data/services/android/storage_permission_service.dart';
 import '../../../domain/models/app_settings.dart';
 import '../../../domain/models/quality_preset.dart';
 import '../../core/l10n.dart';
+import '../../update/widgets/update_widgets.dart';
 import '../view_model/settings_view_model.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
@@ -212,6 +213,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             title: Text(l10n.settingsAppVersion),
             subtitle: Text(state.appVersion ?? '...'),
           ),
+          const UpdateCheckTile(),
           ListTile(
             title: Text(l10n.settingsLicense),
             subtitle: Text(l10n.licenseGpl),

@@ -193,5 +193,18 @@
   "playlistHideVideos": "Скрыть видео",
   "queueClearAll": "Очистить всё",
   "queueClearAllConfirm": "{count, plural, one{Остановить {count} загрузку и очистить список?} few{Остановить {count} загрузки и очистить список?} other{Остановить {count} загрузок и очистить список?}}",
-  "queueClearAllBody": "Уже загруженные файлы останутся на диске."
+  "queueClearAllBody": "Уже загруженные файлы останутся на диске.",
+  "updateAvailable": "Доступна версия Ftube {version}",
+  "updateNotificationText": "Нажмите, чтобы открыть страницу загрузки.",
+  "updateChannel": "Обновления приложения",
+  "updateWhatsNew": "Что нового",
+  "updateDownload": "Скачать",
+  "updateLater": "Позже",
+  "updateSkip": "Пропустить эту версию",
+  "updateNoNotes": "Нет описания выпуска.",
+  "updateCheck": "Проверить обновления",
+  "updateChecking": "Проверка...",
+  "updateUpToDate": "Установлена последняя версия",
+  "updateCheckFailed": "Не удалось проверить обновления",
+  "updateOpenFailed": "Не удалось открыть браузер."
 }

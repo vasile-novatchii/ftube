@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,7 @@ import '../home/widgets/home_view.dart';
 import '../library/widgets/library_view.dart';
 import '../queue/view_model/queue_view_model.dart';
 import '../settings/widgets/settings_view.dart';
+import '../update/view_model/app_update_view_model.dart';
 
 /// Home, Library and Settings. A bottom NavigationBar in narrow windows and
 /// a NavigationRail from [railMinWidth] up, on every platform (D-21).
@@ -25,6 +28,17 @@ const maxContentWidth = 1000.0;
 
 class _AppShellState extends ConsumerState<AppShell> {
   var _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // In the background after the first frame, so it never delays the UI
+    // (docs/spec-v0.6.md D-89).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(ref.read(appUpdateViewModelProvider.notifier).checkOnStartup());
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

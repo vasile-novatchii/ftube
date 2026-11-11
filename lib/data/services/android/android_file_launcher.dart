@@ -15,9 +15,12 @@ class AndroidFileLauncher {
   /// Shows the system share sheet for [path].
   Future<void> share(String path) => _call('share', path);
 
-  Future<void> _call(String method, String path) async {
+  /// Opens a web [url] in the browser (docs/spec-v0.6.md D-94).
+  Future<void> openUrl(String url) => _call('openUrl', url, key: 'url');
+
+  Future<void> _call(String method, String path, {String key = 'path'}) async {
     try {
-      await channel.invokeMethod<void>(method, {'path': path});
+      await channel.invokeMethod<void>(method, {key: path});
     } on PlatformException catch (e) {
       throw switch (e.code) {
         'no_app' => Unsupported('$method: no app for $path'),

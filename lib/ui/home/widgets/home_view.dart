@@ -7,6 +7,8 @@ import '../../../domain/models/models.dart';
 import '../../core/l10n.dart';
 import '../../core/media_info_card.dart';
 import '../../queue/widgets/queue_view.dart';
+import '../../update/view_model/app_update_view_model.dart';
+import '../../update/widgets/update_widgets.dart';
 import '../view_model/home_view_model.dart';
 import 'playlist_panel.dart';
 
@@ -77,6 +79,10 @@ class _HomeViewState extends ConsumerState<HomeView> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final state = ref.watch(homeViewModelProvider);
+    final update = ref.watch(
+      appUpdateViewModelProvider.select((s) => s.banner),
+    );
+    final updates = ref.read(appUpdateViewModelProvider.notifier);
     if (_url.text != state.url) _url.text = state.url;
 
     final error = switch (state.error) {
@@ -96,6 +102,33 @@ class _HomeViewState extends ConsumerState<HomeView> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(16),
           children: [
+            if (update != null)
+              _Banner(
+                key: const Key('home.update'),
+                text: l10n.updateAvailable(update.version),
+                actions: [
+                  TextButton(
+                    key: const Key('home.update.skip'),
+                    onPressed: updates.skip,
+                    child: Text(l10n.updateSkip),
+                  ),
+                  TextButton(
+                    key: const Key('home.update.later'),
+                    onPressed: updates.later,
+                    child: Text(l10n.updateLater),
+                  ),
+                  TextButton(
+                    key: const Key('home.update.notes'),
+                    onPressed: () => showReleaseNotes(context, ref, update),
+                    child: Text(l10n.updateWhatsNew),
+                  ),
+                  FilledButton(
+                    key: const Key('home.update.download'),
+                    onPressed: () => downloadRelease(context, ref, update),
+                    child: Text(l10n.updateDownload),
+                  ),
+                ],
+              ),
             if (state.storageBlocked)
               _Banner(
                 text: l10n.storageDenied,
@@ -301,7 +334,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.text, required this.actions});
+  const _Banner({required this.text, required this.actions, super.key});
 
   final String text;
   final List<Widget> actions;

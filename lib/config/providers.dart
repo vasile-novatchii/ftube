@@ -10,18 +10,21 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../data/repositories/app_update_repository.dart';
 import '../data/repositories/download_repository.dart';
 import '../data/repositories/download_starter.dart';
 import '../data/repositories/library_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/services/android/android_file_launcher.dart';
 import '../data/services/android/android_media_service.dart';
+import '../data/services/android/android_update_notifier.dart';
 import '../data/services/android/background_downloads.dart';
 import '../data/services/android/ffmpeg_kit_runner.dart';
 import '../data/services/android/notification_permission.dart';
 import '../data/services/android/share_link_service.dart';
 import '../data/services/android/storage_permission_service.dart';
 import '../data/services/android/yt_dlp_bridge.dart';
+import '../data/services/app_update_service.dart';
 import '../data/services/binaries/binary_catalog.dart';
 import '../data/services/binaries/binary_installer.dart';
 import '../data/services/binary_service.dart';
@@ -277,6 +280,25 @@ RemovedItemsStore removedItemsStore(Ref ref) =>
 @Riverpod(keepAlive: true)
 Future<String> appVersion(Ref ref) async =>
     (await PackageInfo.fromPlatform()).version;
+
+/// Reads the latest Ftube release from GitHub (docs/spec-v0.6.md D-88).
+@Riverpod(keepAlive: true)
+AppUpdateService appUpdateService(Ref ref) =>
+    AppUpdateService(appVersion: () => ref.read(appVersionProvider.future));
+
+@Riverpod(keepAlive: true)
+AppUpdateRepository appUpdateRepository(Ref ref) => AppUpdateRepository(
+  service: ref.watch(appUpdateServiceProvider),
+  prefs: ref.watch(prefsServiceProvider),
+  currentVersion: () => ref.read(appVersionProvider.future),
+);
+
+/// The "new version" notification (D-93). Null on desktop.
+@Riverpod(keepAlive: true)
+AndroidUpdateNotifier? androidUpdateNotice(Ref ref) =>
+    ref.watch(appPlatformProvider).isDesktop
+    ? null
+    : const AndroidUpdateNotifier();
 
 /// Asks the user for a folder. Returns null when they cancel.
 typedef DirectoryPicker = Future<String?> Function({String? initialDirectory});

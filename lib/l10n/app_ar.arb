@@ -193,5 +193,18 @@
   "playlistHideVideos": "إخفاء الفيديوهات",
   "queueClearAll": "مسح الكل",
   "queueClearAllConfirm": "{count, plural, =1{إيقاف تنزيل واحد ومسح القائمة؟} other{إيقاف {count} من التنزيلات ومسح القائمة؟}}",
-  "queueClearAllBody": "تبقى الملفات التي تم تنزيلها على القرص."
+  "queueClearAllBody": "تبقى الملفات التي تم تنزيلها على القرص.",
+  "updateAvailable": "الإصدار {version} من Ftube متاح",
+  "updateNotificationText": "اضغط لفتح صفحة التنزيل.",
+  "updateChannel": "تحديثات التطبيق",
+  "updateWhatsNew": "ما الجديد",
+  "updateDownload": "تنزيل",
+  "updateLater": "لاحقًا",
+  "updateSkip": "تخطي هذا الإصدار",
+  "updateNoNotes": "لا توجد ملاحظات إصدار.",
+  "updateCheck": "التحقق من التحديثات",
+  "updateChecking": "جارٍ التحقق...",
+  "updateUpToDate": "محدّث",
+  "updateCheckFailed": "تعذّر التحقق من التحديثات",
+  "updateOpenFailed": "تعذّر فتح المتصفح."
 }

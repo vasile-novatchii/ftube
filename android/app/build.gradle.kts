@@ -7,7 +7,8 @@ plugins {
 }
 
 // Release signing: android/key.properties locally, FTUBE_KEYSTORE_* in CI.
-// Without either, release builds fall back to the debug key.
+// Without either, local release builds fall back to the debug key; the
+// Release workflow refuses to (docs/spec-v0.6.md D-95).
 val keyProperties = Properties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) file.inputStream().use { load(it) }
