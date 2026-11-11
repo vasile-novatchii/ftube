@@ -57,6 +57,17 @@ Ftube checks for a new version once a day and shows it on Home (and as a notific
 - **Windows:** quit Ftube and replace the unzipped folder with the new one. Settings and the downloaded tools are kept, since they live in the app data folder.
 - **Linux:** quit Ftube, delete the old `~/.local/opt/Ftube-*-linux` folder and unpack the new archive as above.
 
+## Privacy
+
+Ftube has no accounts, ads, analytics or tracking. It connects only to:
+
+- **The sites you download from**, through yt-dlp, including the video thumbnails they serve.
+- **GitHub**, to check for a new Ftube version (once a day, or when you tap Check for updates), to download yt-dlp, FFmpeg, FFprobe and Deno on first launch on desktop, and to update yt-dlp.
+
+Nothing about you or your downloads is sent to the developer. Your settings, downloads and library stay on your device. Links open in your own browser.
+
+Ftube is provided under the GPL-3.0 without warranty (sections 15 and 16 of the [license](LICENSE)). You are responsible for downloading only what you have the right to.
+
 ## Development
 
 The Flutter version is pinned with [fvm](https://fvm.app) in `.fvmrc`.
